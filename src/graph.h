@@ -26,23 +26,18 @@ public:
     void SetMethodName(const std::string& name);
     void Dump(std::ostream &out);
 
-    /*
-     * Functions to create instructions
-    */
-    auto* CreateConstant() {
-        auto inst = new ConstantInst();
-        inst->SetId(all_inst_.size());
-        all_inst_.push_back(inst);
-        return inst;
+#define CREATE_CREATORS(OPCODE)                                    \
+    template <typename... Args>                                    \
+    auto* Create##OPCODE##Inst(Args&&... args) {                   \
+        auto inst = new OPCODE##Inst(std::forward<Args>(args)...); \
+        inst->SetId(all_inst_.size());                             \
+        all_inst_.push_back(inst);                                 \
+        return inst;                                               \
     }
 
-    template <typename... Args>
-    auto* CreateAddInst(Args&&... args) {
-        auto inst = new AddInst(std::forward<Args>(args)...);
-        inst->SetId(all_inst_.size());
-        all_inst_.push_back(inst);
-        return inst;
-    }
+    OPCODE_LIST(CREATE_CREATORS)
+
+#undef CREATE_CREATORS
 
 private:
     std::vector<Inst *> all_inst_;
