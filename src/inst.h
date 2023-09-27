@@ -2,29 +2,33 @@
 
 #include <cstdint>
 #include <array>
+#include <vector>
 #include <ios>
 #include <list>
 #include <assert.h>
 #include <initializer_list>
 #include <string>
 #include <iostream>
+#include <algorithm>
 
 #include "opcodes.h"
 
 namespace compiler {
 
-/* Full list of instructions, plus and minus show what support in compiler at the moment:
+/* ======================================================================================
+ * Full list of instructions, plus and minus show what support in compiler at the moment:
  * + Constant
  * + Add
  * - Mul
- * - Region
- * - Start
- * - If
+ * + Region
+ * + Start
+ * + If
  * - Jmp
  * - Phi
  * - Return
  * - Compare
  * - Parameter
+ * ======================================================================================
 */
 
 class Inst
@@ -34,11 +38,13 @@ public:
         opc_(Opcode::NONE),
         type_(Type::NONE) {};
 
+    Inst(Opcode opc):
+        opc_(opc),
+        type_(Type::NONE) {};
+
     Inst(Opcode opc, Type type):
         opc_(opc),
         type_(type) {};
-
-    // virtual ~Inst() = default;
 
     void Dump(std::ostream& out);
 
@@ -79,6 +85,10 @@ public:
     FixedInputs():
         inputs_() {};
 
+    FixedInputs(Opcode opc):
+        Inst(opc),
+        inputs_() {};
+
     FixedInputs(Opcode opc, Type type, std::array<Inst *, N> inputs) :
             Inst(opc, type),
             inputs_(inputs) {
@@ -97,12 +107,16 @@ public:
     }
 
     void SetInput(uint32_t index, Inst *inst) {
+        assert(index < N);
         inputs_.at(index) = inst;
     }
 
     void DumpInputs(std::ostream &out) const override {
         bool first = true;
         for (auto inst : GetInputs()) {
+            if (inst == nullptr) {
+                continue;
+            }
             out << std::string(first ? "" : ", ") << std::string("v") << std::to_string(inst->GetId());
             first = false;
         }
@@ -110,6 +124,54 @@ public:
 
 private:
     std::array<Inst *, N> inputs_;
+};
+
+class DynamicInputs: public Inst
+{
+public:
+    DynamicInputs():
+        Inst(),
+        inputs_() {};
+
+    DynamicInputs(Opcode opc):
+        Inst(opc),
+        inputs_() {};
+
+    DynamicInputs(Opcode opc, const std::list<Inst *>& inputs):
+            Inst(opc),
+            inputs_(inputs) {};
+
+    const std::list<Inst *>& GetInputs() const {
+        return inputs_;
+    }
+
+    void AddInput(Inst *inst) {
+        inputs_.push_back(inst);
+    }
+
+    void DeleteInput(Inst *inst) {
+        auto it = std::find(inputs_.begin(), inputs_.end(), inst);
+        assert(it == inputs_.end());
+        inputs_.erase(it);
+    }
+
+    void SetInput(std::list<Inst *>::const_iterator &it, Inst *inst) {
+        inputs_.insert(it, inst);
+    }
+
+    void DumpInputs(std::ostream &out) const override {
+        bool first = true;
+        for (auto inst : GetInputs()) {
+            if (inst == nullptr) {
+                continue;
+            }
+            out << std::string(first ? "" : ", ") << std::string("v") << std::to_string(inst->GetId());
+            first = false;
+        }
+    }
+
+private:
+    std::list<Inst *> inputs_;
 };
 
 using ImmType = int64_t;
@@ -151,6 +213,72 @@ public:
         out << std::string("0x") << std::hex << GetImm() << std::dec;
     }
 private:
+};
+
+class StartInst : public FixedInputs<1>
+{
+public:
+    StartInst():
+        FixedInputs<1>(Opcode::Start) {}
+};
+
+class RegionInst : public DynamicInputs
+{
+public:
+    RegionInst():
+        DynamicInputs(Opcode::Region) {}
+
+    void SetUser(Inst *inst) {
+        user_ = inst;
+    }
+
+private:
+    Inst *user_;
+};
+
+class IfInst : public FixedInputs<2>
+{
+public:
+    // First input is Region
+    // Second input is Bool condition value
+    IfInst():
+        FixedInputs<2>(Opcode::If) {}
+
+    Inst *GetTrueBranch() {
+        return GetBranch<BranchWay::True>();
+    }
+
+    Inst *GetFalseBranch() {
+        return GetBranch<BranchWay::False>();
+    }
+
+    void SetTrueBranch(Inst *inst) {
+        SetBranch<BranchWay::True>(inst);
+    }
+
+    void SetFalseBranch(Inst *inst) {
+        SetBranch<BranchWay::False>(inst);
+    }
+
+private:
+    enum class BranchWay {
+        True = 0,
+        False
+    };
+
+    template<BranchWay V>
+    Inst *GetBranch() {
+        return branchs_[static_cast<size_t>(V)];
+    }
+
+    template<BranchWay V>
+    void SetBranch(Inst *inst) {
+        assert(inst->GetOpcode() == Opcode::Region);
+        static_cast<RegionInst *>(inst)->AddInput(this);
+        branchs_[static_cast<size_t>(V)] = inst;
+    }
+
+    std::array<Inst *, 2> branchs_;
 };
 
 }
