@@ -7,7 +7,11 @@ namespace compiler {
 
 #define OPCODE_LIST(ACTION) \
     ACTION( Add )           \
-    ACTION( Constant )
+    ACTION( Constant )      \
+    ACTION( Start )         \
+    ACTION( If )            \
+    ACTION( Region )
+
 
 enum class Opcode {
     NONE = 0,
