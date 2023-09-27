@@ -5,23 +5,32 @@
 
 namespace compiler {
 
+#define OPCODE_LIST(ACTION) \
+    ACTION( Add )           \
+    ACTION( Constant )
+
 enum class Opcode {
     NONE = 0,
-    ADD,
-    SUB,
-    MUL,
-    DIV,
-    CONSTANT,
+
+#define CREATE_OPCODE(OPCODE) \
+    OPCODE,
+
+    OPCODE_LIST(CREATE_OPCODE)
+
+#undef CREATE_OPCODE
+
     NUM_OPCODES
 };
 
 constexpr std::array<const char *const, static_cast<size_t>(Opcode::NUM_OPCODES)> OPCODE_NAME {
-    "NONE",
-    "Add",
-    "Sub",
-    "Mul",
-    "Div",
-    "Constant"
+    "INVALID",
+
+#define CREATE_NAMES(OPCODE) \
+    #OPCODE,
+
+    OPCODE_LIST(CREATE_NAMES)
+
+#undef CREATE_NAMES
 };
 
 enum class Type {

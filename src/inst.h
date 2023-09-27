@@ -136,7 +136,7 @@ class AddInst : public FixedInputs<2>
 {
 public:
     AddInst(Type type, Inst *input0, Inst *input1):
-        FixedInputs<2>(Opcode::ADD, type, {{input0, input1}}) {}
+        FixedInputs<2>(Opcode::Add, type, {{input0, input1}}) {}
 
 };
 
@@ -144,7 +144,7 @@ class ConstantInst : public Inst, public ImmidiateProperty
 {
 public:
     ConstantInst():
-        Inst(Opcode::CONSTANT, Type::INT64),
+        Inst(Opcode::Constant, Type::INT64),
         ImmidiateProperty(0) {}
 
     void DumpInputs(std::ostream &out) const override {

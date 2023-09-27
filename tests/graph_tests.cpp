@@ -20,7 +20,7 @@ TEST(GraphTest, DumpEmptyGraph) {
 TEST(GraphTest, CreateConstant) {
     Graph graph;
     graph.SetMethodName("Only const");
-    auto *cnst = graph.CreateConstant();
+    auto *cnst = graph.CreateConstantInst();
     cnst->SetImm(1);
     std::ostringstream dump_out;
     std::string output =
@@ -34,9 +34,9 @@ TEST(GraphTest, CreateConstant) {
 
 TEST(GraphTest, CreateAdd) {
     Graph graph;
-    auto *cnst0 = graph.CreateConstant();
+    auto *cnst0 = graph.CreateConstantInst();
     cnst0->SetImm(0);
-    auto *cnst1 = graph.CreateConstant();
+    auto *cnst1 = graph.CreateConstantInst();
     cnst1->SetImm(1);
     auto *inst = graph.CreateAddInst(Type::INT64, cnst0, cnst1);
     std::ostringstream dump_out;
