@@ -39,6 +39,7 @@ constexpr std::array<const char *const, static_cast<size_t>(Opcode::NUM_OPCODES)
 
 enum class Type {
     NONE = 0,
+    BOOL,
     INT32,
     UINT32,
     INT64,

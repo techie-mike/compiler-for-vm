@@ -7,6 +7,7 @@ include_directories(
 add_executable(
     graph_tests
     graph_tests.cpp
+    graph_comparator.cpp
     ${COMPILER_SOURCES}
 )
 

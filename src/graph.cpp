@@ -1,5 +1,4 @@
 #include "graph.h"
-#include "graph.h"
 #include <iterator>
 #include <ostream>
 
@@ -17,6 +16,11 @@ void Graph::Dump(std::ostream &out)
 void Graph::SetMethodName(const std::string& name)
 {
     name_method_ = name;
+}
+
+std::string Graph::GetMethodName() const
+{
+    return name_method_;
 }
 
 }
