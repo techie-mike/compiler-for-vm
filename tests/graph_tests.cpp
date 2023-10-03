@@ -1,7 +1,10 @@
 #include <gtest/gtest.h>
 #include <ostream>
 #include "inst.h"
-#include "src/graph.h"
+#include "graph.h"
+
+#include "ir_constructor.h"
+#include "tests/graph_comparator.h"
 
 namespace compiler {
 
@@ -137,6 +140,18 @@ TEST(GraphTest, CreateIfFullWorkGraph) {
 
     graph.Dump(dump_out);
     ASSERT_EQ(dump_out.str(), output);
+}
+
+TEST(GraphTest, TestConstructorAndComparator) {
+    auto ic = IrConstructor();
+    ic.CreateInst<ConstantInst>(0).Imm(123);
+    ic.CreateInst<AddInst>(1).Inputs(0, 0);
+
+    auto ic_after = IrConstructor();
+    ic_after.CreateInst<ConstantInst>(0).Imm(123);
+    ic_after.CreateInst<AddInst>(1).Inputs(0, 0);
+
+    GraphComparator(ic.GetGraph(), ic_after.GetGraph()).Compare();
 }
 
 }

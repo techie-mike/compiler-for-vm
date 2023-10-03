@@ -68,6 +68,20 @@ public:
         return opc_;
     }
 
+    virtual Inst *GetInput(uint32_t index) {
+        std::cerr << "Inst with opcode " << OPCODE_NAME[static_cast<size_t>(GetOpcode())] << " don't have inputs";
+        std::abort();
+    }
+
+    virtual void SetInput(uint32_t index, Inst *inst) {
+        std::cerr << "Inst with opcode " << OPCODE_NAME[static_cast<size_t>(GetOpcode())] << " don't have inputs";
+        std::abort();
+    }
+
+    virtual uint32_t NumInputs() {
+        return 0;
+    }
+
     virtual void DumpInputs(std::ostream &out) const {};
 
 
@@ -89,6 +103,10 @@ public:
         Inst(opc),
         inputs_() {};
 
+    FixedInputs(Opcode opc, Type type):
+        Inst(opc, type),
+        inputs_() {};
+
     FixedInputs(Opcode opc, Type type, std::array<Inst *, N> inputs) :
             Inst(opc, type),
             inputs_(inputs) {
@@ -98,7 +116,7 @@ public:
         }
     };
 
-    Inst *GetInput(uint32_t index) {
+    virtual Inst *GetInput(uint32_t index) override {
         return inputs_.at(index);
     }
 
@@ -106,9 +124,13 @@ public:
         return inputs_;
     }
 
-    void SetInput(uint32_t index, Inst *inst) {
+    virtual void SetInput(uint32_t index, Inst *inst) override {
         assert(index < N);
         inputs_.at(index) = inst;
+    }
+
+    virtual uint32_t NumInputs() override {
+        return inputs_.size();
     }
 
     void DumpInputs(std::ostream &out) const override {
@@ -155,8 +177,24 @@ public:
         inputs_.erase(it);
     }
 
-    void SetInput(std::list<Inst *>::const_iterator &it, Inst *inst) {
+    virtual void SetInput(uint32_t index, Inst *inst) override {
+        auto it = inputs_.begin();
+        for (int i = 0; i < index; i++) {
+            it++;
+        }
         inputs_.insert(it, inst);
+    }
+
+    virtual Inst *GetInput(uint32_t index) override {
+        auto it = inputs_.begin();
+        for (int i = 0; i < index; i++) {
+            it++;
+        }
+        return *it;
+    }
+
+    virtual uint32_t NumInputs() override {
+        return inputs_.size();
     }
 
     void DumpInputs(std::ostream &out) const override {
@@ -197,6 +235,9 @@ private:
 class AddInst : public FixedInputs<2>
 {
 public:
+    AddInst():
+        FixedInputs<2>(Opcode::Add) {}
+
     AddInst(Type type, Inst *input0, Inst *input1):
         FixedInputs<2>(Opcode::Add, type, {{input0, input1}}) {}
 
