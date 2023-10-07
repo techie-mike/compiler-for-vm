@@ -19,17 +19,24 @@ namespace compiler {
  * Full list of instructions, plus and minus show what support in compiler at the moment:
  * + Constant
  * + Add
- * - Mul
+ * + Sub
+ * + Mul
+ * + Div
  * + Region
  * + Start
  * + If
  * - Jmp
  * - Phi
  * - Return
- * - Compare
+ * + Compare
  * - Parameter
  * ======================================================================================
 */
+
+using id_t = uint32_t;
+
+std::string OpcodeToString(Opcode opc);
+std::string CcToString(ConditionCode cc);
 
 class Inst
 {
@@ -48,11 +55,13 @@ public:
 
     void Dump(std::ostream& out);
 
-    uint32_t GetId() const {
+    virtual void DumpOpcode(std::ostream& out);
+
+    id_t GetId() const {
         return id_;
     }
 
-    void SetId(uint32_t id) {
+    void SetId(id_t id) {
         id_ = id;
     }
 
@@ -64,16 +73,20 @@ public:
         type_ = type;
     }
 
-    Opcode GetOpcode() {
+    Opcode GetOpcode() const {
         return opc_;
     }
 
-    virtual Inst *GetInput(uint32_t index) {
+    void SetOpcode(Opcode opc) {
+        opc_ = opc;
+    }
+
+    virtual Inst *GetInput(id_t index) {
         std::cerr << "Inst with opcode " << OPCODE_NAME[static_cast<size_t>(GetOpcode())] << " don't have inputs";
         std::abort();
     }
 
-    virtual void SetInput(uint32_t index, Inst *inst) {
+    virtual void SetInput(id_t index, Inst *inst) {
         std::cerr << "Inst with opcode " << OPCODE_NAME[static_cast<size_t>(GetOpcode())] << " don't have inputs";
         std::abort();
     }
@@ -86,7 +99,7 @@ public:
 
 
 private:
-    uint32_t id_;
+    id_t id_;
     Opcode opc_;
     Type type_;
     std::list<Inst *> *user_list;
@@ -116,7 +129,7 @@ public:
         }
     };
 
-    virtual Inst *GetInput(uint32_t index) override {
+    virtual Inst *GetInput(id_t index) override {
         return inputs_.at(index);
     }
 
@@ -124,7 +137,7 @@ public:
         return inputs_;
     }
 
-    virtual void SetInput(uint32_t index, Inst *inst) override {
+    virtual void SetInput(id_t index, Inst *inst) override {
         assert(index < N);
         inputs_.at(index) = inst;
     }
@@ -177,7 +190,7 @@ public:
         inputs_.erase(it);
     }
 
-    virtual void SetInput(uint32_t index, Inst *inst) override {
+    virtual void SetInput(id_t index, Inst *inst) override {
         auto it = inputs_.begin();
         for (int i = 0; i < index; i++) {
             it++;
@@ -185,7 +198,7 @@ public:
         inputs_.insert(it, inst);
     }
 
-    virtual Inst *GetInput(uint32_t index) override {
+    virtual Inst *GetInput(id_t index) override {
         auto it = inputs_.begin();
         for (int i = 0; i < index; i++) {
             it++;
@@ -243,6 +256,18 @@ public:
 
 };
 
+class BinaryOperation : public FixedInputs<2>
+{
+public:
+    BinaryOperation():
+        FixedInputs<2>() {}
+
+    BinaryOperation(Opcode opc):
+        FixedInputs<2>(opc) {}
+
+    BinaryOperation(Opcode opc, Type type, Inst *input0, Inst *input1):
+        FixedInputs<2>(opc, type, {{input0, input1}}) {}
+};
 class ConstantInst : public Inst, public ImmidiateProperty
 {
 public:
@@ -301,6 +326,8 @@ public:
         SetBranch<BranchWay::False>(inst);
     }
 
+    virtual void DumpOpcode(std::ostream& out) override;
+
 private:
     enum class BranchWay {
         True = 0,
@@ -320,6 +347,28 @@ private:
     }
 
     std::array<Inst *, 2> branchs_;
+};
+
+class CompareInst : public FixedInputs<2>
+{
+public:
+    CompareInst():
+        FixedInputs<2>(Opcode::Compare, Type::BOOL) {};
+
+    void SetCC(ConditionCode cc) {
+        cc_ = cc;
+    }
+
+    ConditionCode GetCC() {
+        return cc_;
+    }
+
+    virtual void DumpOpcode(std::ostream& out) override;
+
+
+private:
+    ConditionCode cc_;
+
 };
 
 }

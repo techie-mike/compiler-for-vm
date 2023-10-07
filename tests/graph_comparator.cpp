@@ -26,6 +26,10 @@ void GraphComparator::CompareInstructions(Inst *left, Inst *right) {
             ASSERT_EQ(static_cast<ConstantInst *>(left)->GetImm(), static_cast<ConstantInst *>(right)->GetImm());
             break;
         }
+        case Opcode::Compare: {
+            ASSERT_EQ(static_cast<CompareInst *>(left)->GetCC(), static_cast<CompareInst *>(right)->GetCC());
+            break;
+        }
         default: {
             break;
         }

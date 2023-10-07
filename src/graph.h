@@ -28,26 +28,35 @@ public:
 
     void Dump(std::ostream &out);
 
-#define CREATE_CREATORS(OPCODE)                                    \
-    template <typename... Args>                                    \
-    auto* Create##OPCODE##Inst(Args&&... args) {                   \
-        auto inst = new OPCODE##Inst(std::forward<Args>(args)...); \
-        inst->SetId(all_inst_.size());                             \
-        all_inst_.push_back(inst);                                 \
-        return inst;                                               \
+#define CREATE_CREATORS(OPCODE, BASE, ...)                                                  \
+    template <typename... Args>                                                             \
+    auto *Create##OPCODE##Inst(Args&&... args) {                                            \
+        auto inst = new BASE(std::forward<Args>(args)...);                                  \
+        /* TODO - Bad API, perhaps there is a better way */                                 \
+        assert(inst->GetOpcode() == Opcode::OPCODE || inst->GetOpcode() == Opcode::NONE);   \
+        inst->SetOpcode(Opcode::OPCODE);                                                    \
+        inst->SetId(all_inst_.size());                                                      \
+        all_inst_.push_back(inst);                                                          \
+        return inst;                                                                        \
     }
 
     OPCODE_LIST(CREATE_CREATORS)
 
 #undef CREATE_CREATORS
 
-    template <typename T>
-    auto* CreateInstByIndex(uint32_t index) {
+    Inst *CreateClearInstByOpcode(Opcode opc);
+
+    template <Opcode T>
+    auto* CreateInstByIndex(id_t index) {
         if (!unit_test_mode_) {
             std::cerr << "Function only for unit tests\n";
-            std::abort();
+            std::exit(1);
         }
-        auto inst = new T();
+        if (index < GetNumInsts() && GetInstByIndex(index) != nullptr) {
+            std::cerr << "Inst with index " << index << " already exist\n";
+            std::exit(1);
+        }
+        auto inst = CreateClearInstByOpcode(T);
         inst->SetId(index);
         if (index >= all_inst_.size()) {
             all_inst_.resize(index + 1);
@@ -56,7 +65,7 @@ public:
         return inst;
     }
 
-    Inst *GetInstByIndex(uint32_t index) {
+    Inst *GetInstByIndex(id_t index) {
         return all_inst_.at(index);
     }
 
@@ -64,7 +73,7 @@ public:
         unit_test_mode_ = true;
     }
 
-    uint32_t GetNumInsts() {
+    size_t GetNumInsts() {
         return all_inst_.size();
     }
 

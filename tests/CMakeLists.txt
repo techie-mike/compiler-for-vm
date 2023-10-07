@@ -23,4 +23,10 @@ gtest_discover_tests(graph_tests)
 
 add_custom_target(
     graph_tests_gtest
-    COMMAND graph_tests)
+    COMMAND graph_tests
+)
+
+add_custom_target(
+    tests
+    DEPENDS graph_tests_gtest
+)

@@ -41,7 +41,10 @@ TEST(GraphTest, CreateAdd) {
     cnst0->SetImm(0);
     auto *cnst1 = graph.CreateConstantInst();
     cnst1->SetImm(1);
-    auto *inst = graph.CreateAddInst(Type::INT64, cnst0, cnst1);
+    auto *inst = graph.CreateAddInst();
+    inst->SetType(Type::INT64);
+    inst->SetInput(0, cnst0);
+    inst->SetInput(1, cnst1);
     std::ostringstream dump_out;
     std::string output =
     "Method: \n"
@@ -134,7 +137,7 @@ TEST(GraphTest, CreateIfFullWorkGraph) {
     "   0.     Start \n"
     "   1.    Region v0, v3\n"
     "   2.  Constant 0x0\n"
-    "   3.        If v1, v2\n"
+    "   3.        If [T:->v4 F:->v1] v1, v2\n"
     "   4.    Region v3\n"
     "   5.     Start v4\n";
 
@@ -144,14 +147,64 @@ TEST(GraphTest, CreateIfFullWorkGraph) {
 
 TEST(GraphTest, TestConstructorAndComparator) {
     auto ic = IrConstructor();
-    ic.CreateInst<ConstantInst>(0).Imm(123);
-    ic.CreateInst<AddInst>(1).Inputs(0, 0);
+    ic.CreateInst<Opcode::Constant>(0).Imm(123);
+    ic.CreateInst<Opcode::Add>(1).Inputs(0, 0);
 
     auto ic_after = IrConstructor();
-    ic_after.CreateInst<ConstantInst>(0).Imm(123);
-    ic_after.CreateInst<AddInst>(1).Inputs(0, 0);
+    ic_after.CreateInst<Opcode::Constant>(0).Imm(123);
+    ic_after.CreateInst<Opcode::Add>(1).Inputs(0, 0);
 
     GraphComparator(ic.GetGraph(), ic_after.GetGraph()).Compare();
+}
+
+TEST(GraphTest, TestBinaryOperations) {
+    auto ic = IrConstructor();
+    ic.CreateInst<Opcode::Constant>(0).Imm(123);
+    ic.CreateInst<Opcode::Add>(1).Inputs(0, 0);
+    ic.CreateInst<Opcode::Sub>(2).Inputs(0, 0);
+    ic.CreateInst<Opcode::Mul>(3).Inputs(0, 0);
+    ic.CreateInst<Opcode::Div>(4).Inputs(0, 0);
+
+    auto graph = ic.GetGraph();
+
+    std::ostringstream dump_out;
+    std::string output =
+    "Method: \n"
+    "Instructions:\n"
+    "   0.  Constant 0x7b\n"
+    "   1.       Add v0, v0\n"
+    "   2.       Sub v0, v0\n"
+    "   3.       Mul v0, v0\n"
+    "   4.       Div v0, v0\n";
+    graph->Dump(dump_out);
+    ASSERT_EQ(dump_out.str(), output);
+}
+
+TEST(GraphTest, TestCompare) {
+    auto ic = IrConstructor();
+    ic.CreateInst<Opcode::Start>(0);
+    ic.CreateInst<Opcode::Region>(1).Inputs(0);
+    ic.CreateInst<Opcode::Constant>(2).Imm(0);
+    ic.CreateInst<Opcode::Constant>(3).Imm(1);
+    ic.CreateInst<Opcode::Compare>(4).Inputs(2, 3).CC(ConditionCode::EQ);
+    ic.CreateInst<Opcode::Region>(6);
+    ic.CreateInst<Opcode::If>(5).Inputs(1, 4).Branches(6, 1);
+    ic.CreateInst<Opcode::Start>(7);
+
+    std::ostringstream dump_out;
+    std::string output =
+    "Method: \n"
+    "Instructions:\n"
+    "   0.     Start \n"
+    "   1.    Region v0, v5\n"
+    "   2.  Constant 0x0\n"
+    "   3.  Constant 0x1\n"
+    "   4.   Compare EQ v2, v3\n"
+    "   5.        If [T:->v6 F:->v1] v1, v4\n"
+    "   6.    Region v5\n"
+    "   7.     Start \n";
+    ic.GetGraph()->Dump(dump_out);
+    ASSERT_EQ(dump_out.str(), output);
 }
 
 }
