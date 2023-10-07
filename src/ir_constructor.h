@@ -16,8 +16,8 @@ public:
     ~IrConstructor() {
         delete graph_;
     }
-    template<typename T>
-    IrConstructor &CreateInst(uint32_t index) {
+    template<Opcode T>
+    IrConstructor &CreateInst(id_t index) {
         auto inst = graph_->CreateInstByIndex<T>(index);
         current_inst_ = inst;
         return *this;
@@ -35,6 +35,31 @@ public:
                 assert(false && ("Should be unreachable!"));
             }
         }
+        return *this;
+    }
+
+    IrConstructor &CC(ConditionCode cc) {
+        assert(current_inst_ != nullptr);
+
+        switch(current_inst_->GetOpcode()) {
+            case Opcode::Compare: {
+                static_cast<CompareInst *>(current_inst_)->SetCC(cc);
+                break;
+            }
+            default: {
+                assert(false && ("Should be unreachable!"));
+            }
+        }
+        return *this;
+    }
+
+    IrConstructor &Branches(id_t true_br, id_t false_br) {
+        assert(current_inst_ != nullptr);
+        if (current_inst_->GetOpcode() != Opcode::If) {
+            assert(false && ("Should be unreachable!"));
+        }
+        static_cast<IfInst *>(current_inst_)->SetTrueBranch(GetGraph()->GetInstByIndex(true_br));
+        static_cast<IfInst *>(current_inst_)->SetFalseBranch(GetGraph()->GetInstByIndex(false_br));
         return *this;
     }
 

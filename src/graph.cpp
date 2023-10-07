@@ -23,4 +23,25 @@ std::string Graph::GetMethodName() const
     return name_method_;
 }
 
+Inst *Graph::CreateClearInstByOpcode(Opcode opc) {
+    switch(opc) {
+
+#define CREATER_BY_OPCODE(OPCODE, BASE, ...)                                                    \
+        case Opcode::OPCODE: {                                                                  \
+            auto *inst = new BASE();                                                            \
+            assert(inst->GetOpcode() == Opcode::OPCODE || inst->GetOpcode() == Opcode::NONE);   \
+            inst->SetOpcode(Opcode::OPCODE);                                                    \
+            return inst;                                                                        \
+        }                                                                                       \
+
+OPCODE_LIST(CREATER_BY_OPCODE)
+
+#undef CREATE_CREATORS
+        default: {
+            std::cerr << "Incorrect opcode!\n";
+            return nullptr;
+        }
+    }
+}
+
 }
