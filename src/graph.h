@@ -18,7 +18,9 @@ public:
 
     ~Graph() {
         for (auto inst : all_inst_) {
-            assert(inst != nullptr);
+            if (inst == nullptr) {
+                continue;
+            }
             delete inst;
         }
     }
@@ -33,7 +35,7 @@ public:
     auto *Create##OPCODE##Inst(Args&&... args) {                                            \
         auto inst = new BASE(std::forward<Args>(args)...);                                  \
         /* TODO - Bad API, perhaps there is a better way */                                 \
-        assert(inst->GetOpcode() == Opcode::OPCODE || inst->GetOpcode() == Opcode::NONE);   \
+        ASSERT(inst->GetOpcode() == Opcode::OPCODE || inst->GetOpcode() == Opcode::NONE);   \
         inst->SetOpcode(Opcode::OPCODE);                                                    \
         inst->SetId(all_inst_.size());                                                      \
         all_inst_.push_back(inst);                                                          \

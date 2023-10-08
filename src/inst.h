@@ -5,13 +5,13 @@
 #include <vector>
 #include <ios>
 #include <list>
-#include <assert.h>
 #include <initializer_list>
 #include <string>
 #include <iostream>
 #include <algorithm>
 
 #include "opcodes.h"
+#include "utils/utils.h"
 
 namespace compiler {
 
@@ -37,6 +37,7 @@ using id_t = uint32_t;
 
 std::string OpcodeToString(Opcode opc);
 std::string CcToString(ConditionCode cc);
+std::string TypeToString(Type type);
 
 class Inst
 {
@@ -81,6 +82,9 @@ public:
         opc_ = opc;
     }
 
+    void AddUser(Inst *inst);
+    void DeleteUser(Inst *inst);
+
     virtual Inst *GetInput(id_t index) {
         std::cerr << "Inst with opcode " << OPCODE_NAME[static_cast<size_t>(GetOpcode())] << " don't have inputs";
         std::abort();
@@ -97,12 +101,15 @@ public:
 
     virtual void DumpInputs(std::ostream &out) const {};
 
+    void DumpUsers(std::ostream &out);
+
+    uint32_t NumUsers();
 
 private:
     id_t id_;
     Opcode opc_;
     Type type_;
-    std::list<Inst *> *user_list;
+    std::list<Inst *> users_;
 };
 
 template <uint32_t N>
@@ -123,7 +130,7 @@ public:
     FixedInputs(Opcode opc, Type type, std::array<Inst *, N> inputs) :
             Inst(opc, type),
             inputs_(inputs) {
-        assert(inputs.size() == N);
+        ASSERT(inputs.size() == N);
         for (size_t i = 0; i < N; i++) {
             inputs_.at(i) = inputs.at(i);
         }
@@ -138,8 +145,9 @@ public:
     }
 
     virtual void SetInput(id_t index, Inst *inst) override {
-        assert(index < N);
+        ASSERT(index < N);
         inputs_.at(index) = inst;
+        inst->AddUser(this);
     }
 
     virtual uint32_t NumInputs() override {
@@ -186,7 +194,7 @@ public:
 
     void DeleteInput(Inst *inst) {
         auto it = std::find(inputs_.begin(), inputs_.end(), inst);
-        assert(it == inputs_.end());
+        ASSERT(it == inputs_.end());
         inputs_.erase(it);
     }
 
@@ -196,6 +204,7 @@ public:
             it++;
         }
         inputs_.insert(it, inst);
+        inst->AddUser(this);
     }
 
     virtual Inst *GetInput(id_t index) override {
@@ -341,7 +350,7 @@ private:
 
     template<BranchWay V>
     void SetBranch(Inst *inst) {
-        assert(inst->GetOpcode() == Opcode::Region);
+        ASSERT(inst->GetOpcode() == Opcode::Region);
         static_cast<RegionInst *>(inst)->AddInput(this);
         branchs_[static_cast<size_t>(V)] = inst;
     }

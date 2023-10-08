@@ -5,6 +5,8 @@
 
 namespace compiler {
 
+//===================================================================
+
 #define OPCODE_LIST(ACTION) \
     ACTION( Add         , BinaryOperation ) \
     ACTION( Sub         , BinaryOperation ) \
@@ -41,14 +43,7 @@ constexpr std::array<const char *const, static_cast<size_t>(Opcode::NUM_OPCODES)
 #undef CREATE_NAMES
 };
 
-enum class Type {
-    NONE = 0,
-    BOOL,
-    INT32,
-    UINT32,
-    INT64,
-    UINT64,
-};
+//===================================================================
 
 #define CC_LIST(ACTION) \
     ACTION( EQ ) \
@@ -83,6 +78,39 @@ constexpr std::array<const char *const, static_cast<size_t>(ConditionCode::NUM_C
 #undef CREATE_CC_STRING
 };
 
-#undef CC_LIST
+//===================================================================
+
+#define TYPE_LIST(ACTION)           \
+    ACTION( BOOL    , b     )       \
+    ACTION( INT32   , i32   )       \
+    ACTION( UINT32  , u32   )       \
+    ACTION( INT64   , i64   )       \
+    ACTION( UINT64  , u64   )
+
+enum class Type {
+    NONE = 0,
+
+#define CREATE_TYPES(TYPE, ...) \
+    TYPE,
+
+    TYPE_LIST(CREATE_TYPES)
+
+#undef CREATE_TYPES
+
+    NUM_TYPES
+};
+
+constexpr std::array<const char *const, static_cast<size_t>(Type::NUM_TYPES)> TYPE_NAME {
+    "",
+
+#define CREATE_TYPES_STRING(TYPE, PRINT) \
+    #PRINT,
+
+    TYPE_LIST(CREATE_TYPES_STRING)
+
+#undef CREATE_TYPES_STRING
+};
+
+#undef TYPE_LIST
 
 }
