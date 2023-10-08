@@ -24,7 +24,7 @@ public:
     }
 
     IrConstructor &Imm(int64_t imm) {
-        assert(current_inst_ != nullptr);
+        ASSERT(current_inst_ != nullptr);
 
         switch(current_inst_->GetOpcode()) {
             case Opcode::Constant: {
@@ -32,14 +32,14 @@ public:
                 break;
             }
             default: {
-                assert(false && ("Should be unreachable!"));
+                ASSERT(false && ("Should be unreachable!"));
             }
         }
         return *this;
     }
 
     IrConstructor &CC(ConditionCode cc) {
-        assert(current_inst_ != nullptr);
+        ASSERT(current_inst_ != nullptr);
 
         switch(current_inst_->GetOpcode()) {
             case Opcode::Compare: {
@@ -47,16 +47,16 @@ public:
                 break;
             }
             default: {
-                assert(false && ("Should be unreachable!"));
+                ASSERT(false && ("Should be unreachable!"));
             }
         }
         return *this;
     }
 
     IrConstructor &Branches(id_t true_br, id_t false_br) {
-        assert(current_inst_ != nullptr);
+        ASSERT(current_inst_ != nullptr);
         if (current_inst_->GetOpcode() != Opcode::If) {
-            assert(false && ("Should be unreachable!"));
+            ASSERT(false && ("Should be unreachable!"));
         }
         static_cast<IfInst *>(current_inst_)->SetTrueBranch(GetGraph()->GetInstByIndex(true_br));
         static_cast<IfInst *>(current_inst_)->SetFalseBranch(GetGraph()->GetInstByIndex(false_br));

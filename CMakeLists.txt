@@ -9,7 +9,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(ROOT_COMPILER ${CMAKE_SOURCE_DIR})
 set(COMPILER_SOURCES
     ${CMAKE_SOURCE_DIR}/src/graph.cpp
-    ${CMAKE_SOURCE_DIR}/src/inst.cpp)
+    ${CMAKE_SOURCE_DIR}/src/inst.cpp
+    ${CMAKE_SOURCE_DIR}/src/utils/utils.cpp)
 
 add_subdirectory(tests)
 

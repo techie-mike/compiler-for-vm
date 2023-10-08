@@ -9,6 +9,9 @@ void Graph::Dump(std::ostream &out)
     out << "Method: " << name_method_ << std::endl;
     out << "Instructions:" << std::endl;
     for (auto inst : all_inst_) {
+        if (inst == nullptr) {
+            continue;
+        }
         inst->Dump(out);
     }
 }
@@ -29,7 +32,7 @@ Inst *Graph::CreateClearInstByOpcode(Opcode opc) {
 #define CREATER_BY_OPCODE(OPCODE, BASE, ...)                                                    \
         case Opcode::OPCODE: {                                                                  \
             auto *inst = new BASE();                                                            \
-            assert(inst->GetOpcode() == Opcode::OPCODE || inst->GetOpcode() == Opcode::NONE);   \
+            ASSERT(inst->GetOpcode() == Opcode::OPCODE || inst->GetOpcode() == Opcode::NONE);   \
             inst->SetOpcode(Opcode::OPCODE);                                                    \
             return inst;                                                                        \
         }                                                                                       \

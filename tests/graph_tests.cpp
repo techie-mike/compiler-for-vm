@@ -29,7 +29,7 @@ TEST(GraphTest, CreateConstant) {
     std::string output =
     "Method: Only const\n"
     "Instructions:\n"
-    "   0.  Constant 0x1\n";
+    "   0.i64 Constant   0x1\n";
 
     graph.Dump(dump_out);
     ASSERT_EQ(dump_out.str(), output);
@@ -49,9 +49,9 @@ TEST(GraphTest, CreateAdd) {
     std::string output =
     "Method: \n"
     "Instructions:\n"
-    "   0.  Constant 0x0\n"
-    "   1.  Constant 0x1\n"
-    "   2.       Add v0, v1\n";
+    "   0.i64 Constant   0x0 -> v2\n"
+    "   1.i64 Constant   0x1 -> v2\n"
+    "   2.i64 Add        v0, v1\n";
 
     graph.Dump(dump_out);
     ASSERT_EQ(dump_out.str(), output);
@@ -67,8 +67,8 @@ TEST(GraphTest, CreateStart) {
     std::string output =
     "Method: \n"
     "Instructions:\n"
-    "   0.     Start \n"
-    "   1.     Start v0\n";
+    "   0.    Start       -> v1\n"
+    "   1.    Start      v0\n";
     graph.Dump(dump_out);
     ASSERT_EQ(dump_out.str(), output);
 }
@@ -85,9 +85,9 @@ TEST(GraphTest, CreateRegions) {
     std::string output =
     "Method: \n"
     "Instructions:\n"
-    "   0.     Start \n"
-    "   1.    Region v0\n"
-    "   2.     Start v1\n";
+    "   0.    Start      \n"
+    "   1.    Region     v0 -> v2\n"
+    "   2.    Start      v1\n";
     graph.Dump(dump_out);
     ASSERT_EQ(dump_out.str(), output);
 }
@@ -134,12 +134,12 @@ TEST(GraphTest, CreateIfFullWorkGraph) {
     std::string output =
     "Method: \n"
     "Instructions:\n"
-    "   0.     Start \n"
-    "   1.    Region v0, v3\n"
-    "   2.  Constant 0x0\n"
-    "   3.        If [T:->v4 F:->v1] v1, v2\n"
-    "   4.    Region v3\n"
-    "   5.     Start v4\n";
+    "   0.    Start      \n"
+    "   1.    Region     v0, v3 -> v3\n"
+    "   2.i64 Constant   0x0 -> v3\n"
+    "   3.    If         [T:->v4 F:->v1] v1, v2\n"
+    "   4.    Region     v3 -> v5\n"
+    "   5.    Start      v4\n";
 
     graph.Dump(dump_out);
     ASSERT_EQ(dump_out.str(), output);
@@ -171,11 +171,12 @@ TEST(GraphTest, TestBinaryOperations) {
     std::string output =
     "Method: \n"
     "Instructions:\n"
-    "   0.  Constant 0x7b\n"
-    "   1.       Add v0, v0\n"
-    "   2.       Sub v0, v0\n"
-    "   3.       Mul v0, v0\n"
-    "   4.       Div v0, v0\n";
+    "   0.i64 Constant   0x7b -> v1, v2, v3, v4\n"
+    "   1.    Add        v0, v0\n"
+    "   2.    Sub        v0, v0\n"
+    "   3.    Mul        v0, v0\n"
+    "   4.    Div        v0, v0\n"
+;
     graph->Dump(dump_out);
     ASSERT_EQ(dump_out.str(), output);
 }
@@ -195,14 +196,14 @@ TEST(GraphTest, TestCompare) {
     std::string output =
     "Method: \n"
     "Instructions:\n"
-    "   0.     Start \n"
-    "   1.    Region v0, v5\n"
-    "   2.  Constant 0x0\n"
-    "   3.  Constant 0x1\n"
-    "   4.   Compare EQ v2, v3\n"
-    "   5.        If [T:->v6 F:->v1] v1, v4\n"
-    "   6.    Region v5\n"
-    "   7.     Start \n";
+    "   0.    Start       -> v1\n"
+    "   1.    Region     v0, v5 -> v5\n"
+    "   2.i64 Constant   0x0 -> v4\n"
+    "   3.i64 Constant   0x1 -> v4\n"
+    "   4.b   Compare    EQ v2, v3 -> v5\n"
+    "   5.    If         [T:->v6 F:->v1] v1, v4\n"
+    "   6.    Region     v5\n"
+    "   7.    Start      \n";
     ic.GetGraph()->Dump(dump_out);
     ASSERT_EQ(dump_out.str(), output);
 }
