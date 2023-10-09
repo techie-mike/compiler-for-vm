@@ -85,4 +85,4 @@ private:
     bool unit_test_mode_;
 };
 
-};
+}

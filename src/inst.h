@@ -25,11 +25,10 @@ namespace compiler {
  * + Region
  * + Start
  * + If
- * - Jmp
- * - Phi
- * - Return
+ * + Phi
+ * + Return
  * + Compare
- * - Parameter
+ * + Parameter
  * ======================================================================================
 */
 
@@ -53,6 +52,7 @@ public:
     Inst(Opcode opc, Type type):
         opc_(opc),
         type_(type) {};
+    virtual ~Inst() = default;
 
     void Dump(std::ostream& out);
 
@@ -85,12 +85,12 @@ public:
     void AddUser(Inst *inst);
     void DeleteUser(Inst *inst);
 
-    virtual Inst *GetInput(id_t index) {
+    virtual Inst *GetInput([[maybe_unused]] id_t index) {
         std::cerr << "Inst with opcode " << OPCODE_NAME[static_cast<size_t>(GetOpcode())] << " don't have inputs";
         std::abort();
     }
 
-    virtual void SetInput(id_t index, Inst *inst) {
+    virtual void SetInput([[maybe_unused]] id_t index, [[maybe_unused]] Inst *inst) {
         std::cerr << "Inst with opcode " << OPCODE_NAME[static_cast<size_t>(GetOpcode())] << " don't have inputs";
         std::abort();
     }
@@ -99,7 +99,7 @@ public:
         return 0;
     }
 
-    virtual void DumpInputs(std::ostream &out) const {};
+    virtual void DumpInputs([[maybe_unused]] std::ostream &out) {};
 
     void DumpUsers(std::ostream &out);
 
@@ -154,7 +154,7 @@ public:
         return inputs_.size();
     }
 
-    void DumpInputs(std::ostream &out) const override {
+    virtual void DumpInputs(std::ostream &out) override {
         bool first = true;
         for (auto inst : GetInputs()) {
             if (inst == nullptr) {
@@ -200,7 +200,7 @@ public:
 
     virtual void SetInput(id_t index, Inst *inst) override {
         auto it = inputs_.begin();
-        for (int i = 0; i < index; i++) {
+        for (id_t i = 0; i < index; i++) {
             it++;
         }
         inputs_.insert(it, inst);
@@ -209,7 +209,7 @@ public:
 
     virtual Inst *GetInput(id_t index) override {
         auto it = inputs_.begin();
-        for (int i = 0; i < index; i++) {
+        for (id_t i = 0; i < index; i++) {
             it++;
         }
         return *it;
@@ -219,7 +219,7 @@ public:
         return inputs_.size();
     }
 
-    void DumpInputs(std::ostream &out) const override {
+    virtual void DumpInputs(std::ostream &out) override {
         bool first = true;
         for (auto inst : GetInputs()) {
             if (inst == nullptr) {
@@ -284,10 +284,9 @@ public:
         Inst(Opcode::Constant, Type::INT64),
         ImmidiateProperty(0) {}
 
-    void DumpInputs(std::ostream &out) const override {
+    virtual void DumpInputs(std::ostream &out) override {
         out << std::string("0x") << std::hex << GetImm() << std::dec;
     }
-private:
 };
 
 class StartInst : public FixedInputs<1>
@@ -374,10 +373,42 @@ public:
 
     virtual void DumpOpcode(std::ostream& out) override;
 
-
 private:
     ConditionCode cc_;
+};
 
+class PhiInst : public DynamicInputs
+{
+public:
+    PhiInst():
+        DynamicInputs(Opcode::Phi) {};
+
+    virtual void DumpInputs(std::ostream &out) override;
+};
+
+class ReturnInst : public FixedInputs<2>
+{
+public:
+    ReturnInst():
+        FixedInputs<2>(Opcode::Return) {};
+};
+
+class ParameterInst : public Inst
+{
+public:
+    ParameterInst():
+        Inst() {};
+
+    void SetIndexParam(id_t index) {
+        idx_param_ = index;
+    }
+
+    id_t GetIndexParam() {
+        return idx_param_;
+    }
+
+private:
+    id_t idx_param_;
 };
 
 }

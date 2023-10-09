@@ -2,15 +2,17 @@ cmake_minimum_required(VERSION 3.20)
 
 project(Compiler)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_FLAGS "-pedantic -Wall -Wextra -Werror -Wshadow")
 
 set(ROOT_COMPILER ${CMAKE_SOURCE_DIR})
 set(COMPILER_SOURCES
     ${CMAKE_SOURCE_DIR}/src/graph.cpp
     ${CMAKE_SOURCE_DIR}/src/inst.cpp
-    ${CMAKE_SOURCE_DIR}/src/utils/utils.cpp)
+    ${CMAKE_SOURCE_DIR}/src/utils/utils.cpp
+)
 
 add_subdirectory(tests)
 

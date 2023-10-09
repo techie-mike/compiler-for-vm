@@ -6,7 +6,7 @@ namespace compiler {
 void GraphComparator::Compare() {
     ASSERT_EQ(left_->GetMethodName(), right_->GetMethodName());
     ASSERT_EQ(left_->GetNumInsts(), right_->GetNumInsts());
-    for (int i = 0; i < left_->GetNumInsts(); i++) {
+    for (size_t i = 0; i < left_->GetNumInsts(); i++) {
         auto left_inst = left_->GetInstByIndex(i);
         auto right_inst = right_->GetInstByIndex(i);
 
@@ -38,7 +38,7 @@ void GraphComparator::CompareInstructions(Inst *left, Inst *right) {
 
 void GraphComparator::CompareInputs(Inst *left, Inst *right) {
     ASSERT_EQ(left->NumInputs(), right->NumInputs());
-    for (int i = 0; i < left->NumInputs(); i++) {
+    for (size_t i = 0; i < left->NumInputs(); i++) {
         ASSERT_EQ(left->GetInput(i)->GetId(), right->GetInput(i)->GetId());
     }
 }

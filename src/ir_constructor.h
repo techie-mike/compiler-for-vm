@@ -31,6 +31,10 @@ public:
                 static_cast<ConstantInst *>(current_inst_)->SetImm(imm);
                 break;
             }
+            case Opcode::Parameter: {
+                static_cast<ParameterInst *>(current_inst_)->SetIndexParam(imm);
+                break;
+            }
             default: {
                 ASSERT(false && ("Should be unreachable!"));
             }
@@ -69,7 +73,7 @@ public:
             static_assert(std::is_same<decltype(it), int>(), "Is not \"Int\" in argument");
         }
         auto inputs = std::vector<int>({args...});
-        for (int i = 0; i < inputs.size(); i++) {
+        for (size_t i = 0; i < inputs.size(); i++) {
             current_inst_->SetInput(i, graph_->GetInstByIndex(inputs.at(i)));
         }
         return *this;

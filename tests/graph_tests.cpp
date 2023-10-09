@@ -175,11 +175,31 @@ TEST(GraphTest, TestBinaryOperations) {
     "   1.    Add        v0, v0\n"
     "   2.    Sub        v0, v0\n"
     "   3.    Mul        v0, v0\n"
-    "   4.    Div        v0, v0\n"
-;
+    "   4.    Div        v0, v0\n";
     graph->Dump(dump_out);
     ASSERT_EQ(dump_out.str(), output);
 }
+
+/*
+ *                      Start
+ * Const 1     Const 0    |
+ *   |           |       \/
+ *   |          \/     Region <-+
+ *   +------> Compare     |     |
+ *               |        |     |
+ *              \/       \/     |
+ *              ------------    |
+ *              |   If     |    |
+ *              ------------    |
+ *              |True|False|    |
+ *              ------------    |
+ *                |      |      |
+ *               \/      +-->---+
+ *             Region
+ *               |
+ *              \/
+ *             Start
+ */
 
 TEST(GraphTest, TestCompare) {
     auto ic = IrConstructor();
@@ -190,7 +210,7 @@ TEST(GraphTest, TestCompare) {
     ic.CreateInst<Opcode::Compare>(4).Inputs(2, 3).CC(ConditionCode::EQ);
     ic.CreateInst<Opcode::Region>(6);
     ic.CreateInst<Opcode::If>(5).Inputs(1, 4).Branches(6, 1);
-    ic.CreateInst<Opcode::Start>(7);
+    ic.CreateInst<Opcode::Start>(7).Inputs(6);
 
     std::ostringstream dump_out;
     std::string output =
@@ -202,8 +222,77 @@ TEST(GraphTest, TestCompare) {
     "   3.i64 Constant   0x1 -> v4\n"
     "   4.b   Compare    EQ v2, v3 -> v5\n"
     "   5.    If         [T:->v6 F:->v1] v1, v4\n"
-    "   6.    Region     v5\n"
-    "   7.    Start      \n";
+    "   6.    Region     v5 -> v7\n"
+    "   7.    Start      v6\n";
+    ic.GetGraph()->Dump(dump_out);
+    ASSERT_EQ(dump_out.str(), output);
+}
+
+/*
+ *                      Start
+ * Const 1     Const 0    |
+ *   |           |       \/
+ *   |          \/     Region <-+
+ *   +------> Compare     |     |
+ *               |        |     |
+ *              \/       \/     |
+ *              ------------    |
+ *              |   If     |    |
+ *              ------------    |
+ *              |True|False|    |
+ *              ------------    |
+ *                |      |      |
+ *               \/      +-->---+
+ *             Region
+ *               |
+ *              \/
+ *             Start
+ */
+
+TEST(GraphTest, TestPhi) {
+    auto ic = IrConstructor();
+    ic.CreateInst<Opcode::Start>(0);
+    ic.CreateInst<Opcode::Constant>(8).Imm(2);
+    ic.CreateInst<Opcode::Region>(1).Inputs(0);
+    ic.CreateInst<Opcode::Constant>(2).Imm(0);
+    ic.CreateInst<Opcode::Phi>(9).Inputs(1, 8, 2);
+    ic.CreateInst<Opcode::Constant>(3).Imm(1);
+    ic.CreateInst<Opcode::Compare>(4).Inputs(2, 3).CC(ConditionCode::EQ);
+    ic.CreateInst<Opcode::Region>(6);
+    ic.CreateInst<Opcode::If>(5).Inputs(1, 4).Branches(6, 1);
+    ic.CreateInst<Opcode::Start>(7).Inputs(6);
+
+    std::ostringstream dump_out;
+    std::string output =
+    "Method: \n"
+    "Instructions:\n"
+    "   0.    Start       -> v1\n"
+    "   1.    Region     v0, v5 -> v9, v5\n"
+    "   2.i64 Constant   0x0 -> v9, v4\n"
+    "   3.i64 Constant   0x1 -> v4\n"
+    "   4.b   Compare    EQ v2, v3 -> v5\n"
+    "   5.    If         [T:->v6 F:->v1] v1, v4\n"
+    "   6.    Region     v5 -> v7\n"
+    "   7.    Start      v6\n"
+    "   8.i64 Constant   0x2 -> v9\n"
+    "   9.    Phi        v1, v8(R0), v2(R5)\n";
+    ic.GetGraph()->Dump(dump_out);
+    ASSERT_EQ(dump_out.str(), output);
+}
+
+TEST(GraphTest, TestParameterReturn) {
+    auto ic = IrConstructor();
+    ic.CreateInst<Opcode::Start>(0);
+    ic.CreateInst<Opcode::Parameter>(1).Imm(2);
+    ic.CreateInst<Opcode::Return>(2).Inputs(0, 1);
+
+    std::ostringstream dump_out;
+    std::string output =
+    "Method: \n"
+    "Instructions:\n"
+    "   0.    Start       -> v2\n"
+    "   1.    Parameter   -> v2\n"
+    "   2.    Return     v0, v1\n";
     ic.GetGraph()->Dump(dump_out);
     ASSERT_EQ(dump_out.str(), output);
 }

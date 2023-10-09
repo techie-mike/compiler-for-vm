@@ -58,6 +58,26 @@ void Inst::DumpUsers(std::ostream& out) {
     }
 }
 
+void PhiInst::DumpInputs(std::ostream &out) {
+    auto region = static_cast<RegionInst *>(GetInput(0));
+    if (NumInputs() != region->NumInputs() + 1) {
+        std::cerr << "Num inputs in PHI and regions not equal!\n";
+        std::exit(1);
+    }
+    auto it_region = region->GetInputs().begin();
+    bool first = true;
+    for (auto inst : GetInputs()) {
+        if (first) {
+            out << std::string("v") << std::to_string(inst->GetId());
+            first = false;
+            continue;
+        }
+        out << std::string(", ") << std::string("v") << std::to_string(inst->GetId()) << std::string("(R")
+            << std::to_string(static_cast<RegionInst *>(*it_region)->GetId()) << std::string(")");
+        first = false;
+        it_region++;
+    }
+}
 
 std::string OpcodeToString(Opcode opc) {
     return OPCODE_NAME.at(static_cast<size_t>(opc));
