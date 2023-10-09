@@ -16,7 +16,10 @@ namespace compiler {
     ACTION( Start       , StartInst       ) \
     ACTION( If          , IfInst          ) \
     ACTION( Region      , RegionInst      ) \
-    ACTION( Compare     , CompareInst     )
+    ACTION( Compare     , CompareInst     ) \
+    ACTION( Phi         , PhiInst         ) \
+    ACTION( Return      , ReturnInst      ) \
+    ACTION( Parameter   , ParameterInst   )
 
 
 enum class Opcode {
