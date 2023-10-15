@@ -5,8 +5,52 @@
 
 namespace compiler {
 
+bool Inst::IsControlInst() {
+    auto opc = GetOpcode();
+    return opc == Opcode::Start || opc == Opcode::Region;
+}
+
+bool Inst::IsDataInst() {
+    return !IsControlInst() && !IsHybridInst();
+}
+
+bool Inst::IsHybridInst() {
+    auto opc = GetOpcode();
+    return opc == Opcode::If || opc == Opcode::Call || opc == Opcode::Return;
+}
+
+bool Inst::IsControlInputInHybrid(Inst *inst) {
+    ASSERT(inst != nullptr);
+    return inst->GetInput(0) == this;
+}
+
+bool Inst::IsDataInputInHybrid(Inst *inst) {
+    ASSERT(inst != nullptr);
+    for (size_t i = 1; i < NumInputs(); i++) {
+        if (inst == GetInput(i)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void Inst::AddUser(Inst *inst) {
-    if (std::find(users_.begin(), users_.end(), inst) != users_.end()) {
+    ASSERT(inst != nullptr);
+    // TODO Create more intuitive API
+    if (inst->IsControlInst() && IsControlInst() && GetOpcode() != Opcode::Start) {
+        *GetUsers().begin() = inst;
+        return;
+    }
+    if (inst->IsHybridInst()) {
+        if (IsControlInputInHybrid(inst)) {
+            *GetUsers().begin() = inst;
+        }
+        if (!inst->IsDataInputInHybrid(this)) {
+            return;
+        }
+    }
+    auto start_users = inst->IsControlInst() || IsHybridInst() ? ++users_.begin() : users_.begin();
+    if (std::find(start_users, users_.end(), inst) != users_.end() && inst!= nullptr) {
         return;
     }
     users_.push_back(inst);
@@ -20,6 +64,18 @@ void Inst::DeleteUser(Inst *inst) {
 
 uint32_t Inst::NumUsers() {
     return users_.size();
+}
+
+void CallInst::SetCFGUser(Inst *inst) {
+    ASSERT(NumUsers() >= 1);
+    ASSERT(inst->GetOpcode() != Opcode::Region);
+    // TODO Check that only one CFG user, maybe it should be in graph checker
+    *(GetUsers().begin()) = inst;
+    inst->SetInput(0, this);
+}
+
+Inst *CallInst::GetCFGUser() {
+    return *(GetUsers().begin());
 }
 
 void Inst::Dump(std::ostream& out) {
@@ -38,22 +94,36 @@ void CompareInst::DumpOpcode(std::ostream& out) {
     out << std::setw(10) << std::left << OpcodeToString(GetOpcode()) << std::string(" ") << CcToString(GetCC()) << std::string(" ");
 }
 
-void IfInst::DumpOpcode(std::ostream& out) {
-    out << std::setw(10) << std::left << OpcodeToString(GetOpcode()) << std::string(" [T:->v") << GetTrueBranch()->GetId()
-        << std::string(" F:->v") << GetFalseBranch()->GetId() << std::string("] ");
-}
-
 void Inst::DumpUsers(std::ostream& out) {
     if (NumUsers() == 0) {
         return;
     }
     out << std::string(" -> ");
     bool first = true;
-    for (auto inst : users_) {
+    for (auto inst : GetUsers()) {
+        out << std::string(first ? "" : ", ");
         if (inst == nullptr) {
+            out << std::string("NOT_SET");
+            first = false;
             continue;
         }
-        out << std::string(first ? "" : ", ") << std::string("v") << std::to_string(inst->GetId());
+        out << std::string("v") << std::to_string(inst->GetId());
+        first = false;
+    }
+}
+
+void IfInst::DumpUsers(std::ostream &out) {
+    ASSERT(NumUsers() == 2);
+    out << std::string(" -> ");
+    bool first = true;
+    for (auto inst : GetUsers()) {
+        out << std::string(first ? "" : ", ");
+        if (inst == nullptr) {
+            out << std::string("NOT_SET");
+            first = false;
+            continue;
+        }
+        out << std::string(first ? "T:" : "F:") << std::string("v") << std::to_string(inst->GetId());
         first = false;
     }
 }

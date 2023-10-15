@@ -19,8 +19,8 @@ namespace compiler {
     ACTION( Compare     , CompareInst     ) \
     ACTION( Phi         , PhiInst         ) \
     ACTION( Return      , ReturnInst      ) \
-    ACTION( Parameter   , ParameterInst   )
-
+    ACTION( Parameter   , ParameterInst   ) \
+    ACTION( Call        , CallInst        )
 
 enum class Opcode {
     NONE = 0,

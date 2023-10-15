@@ -42,6 +42,21 @@ public:
         return *this;
     }
 
+    IrConstructor &CfgUser(id_t index) {
+        ASSERT(current_inst_ != nullptr);
+        auto inst = GetGraph()->GetInstByIndex(index);
+        switch(current_inst_->GetOpcode()) {
+            case Opcode::Call: {
+                static_cast<CallInst *>(current_inst_)->SetCFGUser(inst);
+                break;
+            }
+            default: {
+                ASSERT(false && ("Should be unreachable!"));
+            }
+        }
+        return *this;
+    }
+
     IrConstructor &CC(ConditionCode cc) {
         ASSERT(current_inst_ != nullptr);
 

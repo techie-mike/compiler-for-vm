@@ -26,6 +26,7 @@ namespace compiler {
  * + Start
  * + If
  * + Phi
+ * + Call
  * + Return
  * + Compare
  * + Parameter
@@ -100,10 +101,21 @@ public:
     }
 
     virtual void DumpInputs([[maybe_unused]] std::ostream &out) {};
-
-    void DumpUsers(std::ostream &out);
+    virtual void DumpUsers(std::ostream &out);
 
     uint32_t NumUsers();
+    std::list<Inst *> &GetUsers() {
+        return users_;
+    }
+
+    // Сlassification described in docs/ir.md
+    bool IsControlInst();
+    bool IsDataInst();
+    bool IsHybridInst();
+
+    bool IsControlInputInHybrid(Inst *inst);
+    bool IsDataInputInHybrid(Inst *inst);
+
 
 private:
     id_t id_;
@@ -184,7 +196,7 @@ public:
             Inst(opc),
             inputs_(inputs) {};
 
-    const std::list<Inst *>& GetInputs() const {
+    std::list<Inst *>& GetInputs() {
         return inputs_;
     }
 
@@ -199,11 +211,17 @@ public:
     }
 
     virtual void SetInput(id_t index, Inst *inst) override {
+        ASSERT(index <= NumInputs());
+        if (index == NumInputs()) {
+            inputs_.push_back(inst);
+            inst->AddUser(this);
+            return;
+        }
         auto it = inputs_.begin();
         for (id_t i = 0; i < index; i++) {
             it++;
         }
-        inputs_.insert(it, inst);
+        *it = inst;
         inst->AddUser(this);
     }
 
@@ -300,14 +318,11 @@ class RegionInst : public DynamicInputs
 {
 public:
     RegionInst():
-        DynamicInputs(Opcode::Region) {}
-
-    void SetUser(Inst *inst) {
-        user_ = inst;
+        DynamicInputs(Opcode::Region)
+    {
+        // We reserved user0 for CFG node
+        GetUsers().push_back(nullptr);
     }
-
-private:
-    Inst *user_;
 };
 
 class IfInst : public FixedInputs<2>
@@ -316,45 +331,35 @@ public:
     // First input is Region
     // Second input is Bool condition value
     IfInst():
-        FixedInputs<2>(Opcode::If) {}
+        FixedInputs<2>(Opcode::If)
+    {
+        // True branch (user0)
+        GetUsers().push_back(nullptr);
+        // False branch (user1)
+        GetUsers().push_back(nullptr);
+    }
 
     Inst *GetTrueBranch() {
-        return GetBranch<BranchWay::True>();
+        return *(GetUsers().begin());
     }
 
     Inst *GetFalseBranch() {
-        return GetBranch<BranchWay::False>();
+        return *(++GetUsers().begin());
     }
 
     void SetTrueBranch(Inst *inst) {
-        SetBranch<BranchWay::True>(inst);
+        ASSERT(inst->GetOpcode() == Opcode::Region);
+        *(GetUsers().begin()) = inst;
+        static_cast<RegionInst *>(inst)->AddInput(this);
     }
 
     void SetFalseBranch(Inst *inst) {
-        SetBranch<BranchWay::False>(inst);
-    }
-
-    virtual void DumpOpcode(std::ostream& out) override;
-
-private:
-    enum class BranchWay {
-        True = 0,
-        False
-    };
-
-    template<BranchWay V>
-    Inst *GetBranch() {
-        return branchs_[static_cast<size_t>(V)];
-    }
-
-    template<BranchWay V>
-    void SetBranch(Inst *inst) {
         ASSERT(inst->GetOpcode() == Opcode::Region);
+        *(++GetUsers().begin()) = inst;
         static_cast<RegionInst *>(inst)->AddInput(this);
-        branchs_[static_cast<size_t>(V)] = inst;
     }
 
-    std::array<Inst *, 2> branchs_;
+    virtual void DumpUsers(std::ostream &out) override;
 };
 
 class CompareInst : public FixedInputs<2>
@@ -409,6 +414,34 @@ public:
 
 private:
     id_t idx_param_;
+};
+
+// Call "NameFunc"
+// Inputs:
+// 0) CFG element
+// 1, ...) - arguments of function
+//
+// Users:
+// 0) CFG element
+// 1, ...) - users of return value
+class CallInst : public DynamicInputs
+{
+public:
+    CallInst():
+        DynamicInputs(Opcode::Call),
+        name_func_()
+    {
+        // We reserved user0 for CFG node
+        GetUsers().push_back(nullptr);
+        // We reserved input0 for CFG node
+        GetInputs().push_back(nullptr);
+    };
+
+    void SetCFGUser(Inst *inst);
+    Inst *GetCFGUser();
+
+private:
+    std::string name_func_;
 };
 
 }

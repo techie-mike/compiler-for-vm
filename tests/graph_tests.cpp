@@ -137,7 +137,7 @@ TEST(GraphTest, CreateIfFullWorkGraph) {
     "   0.    Start      \n"
     "   1.    Region     v0, v3 -> v3\n"
     "   2.i64 Constant   0x0 -> v3\n"
-    "   3.    If         [T:->v4 F:->v1] v1, v2\n"
+    "   3.    If         v1, v2 -> T:v4, F:v1\n"
     "   4.    Region     v3 -> v5\n"
     "   5.    Start      v4\n";
 
@@ -159,11 +159,14 @@ TEST(GraphTest, TestConstructorAndComparator) {
 
 TEST(GraphTest, TestBinaryOperations) {
     auto ic = IrConstructor();
-    ic.CreateInst<Opcode::Constant>(0).Imm(123);
-    ic.CreateInst<Opcode::Add>(1).Inputs(0, 0);
-    ic.CreateInst<Opcode::Sub>(2).Inputs(0, 0);
-    ic.CreateInst<Opcode::Mul>(3).Inputs(0, 0);
-    ic.CreateInst<Opcode::Div>(4).Inputs(0, 0);
+    ic.CreateInst<Opcode::Start>(0);
+    ic.CreateInst<Opcode::Region>(3).Inputs(0);
+    ic.CreateInst<Opcode::Constant>(2).Imm(123);
+    ic.CreateInst<Opcode::Add>(4).Inputs(2, 2);
+    ic.CreateInst<Opcode::Sub>(5).Inputs(2, 2);
+    ic.CreateInst<Opcode::Mul>(6).Inputs(2, 2);
+    ic.CreateInst<Opcode::Div>(7).Inputs(2, 2);
+    ic.CreateInst<Opcode::Start>(1).Inputs(3);
 
     auto graph = ic.GetGraph();
 
@@ -171,11 +174,14 @@ TEST(GraphTest, TestBinaryOperations) {
     std::string output =
     "Method: \n"
     "Instructions:\n"
-    "   0.i64 Constant   0x7b -> v1, v2, v3, v4\n"
-    "   1.    Add        v0, v0\n"
-    "   2.    Sub        v0, v0\n"
-    "   3.    Mul        v0, v0\n"
-    "   4.    Div        v0, v0\n";
+    "   0.    Start       -> v3\n"
+    "   1.    Start      v3\n"
+    "   2.i64 Constant   0x7b -> v4, v5, v6, v7\n"
+    "   3.    Region     v0 -> v1\n"
+    "   4.    Add        v2, v2\n"
+    "   5.    Sub        v2, v2\n"
+    "   6.    Mul        v2, v2\n"
+    "   7.    Div        v2, v2\n";
     graph->Dump(dump_out);
     ASSERT_EQ(dump_out.str(), output);
 }
@@ -204,26 +210,26 @@ TEST(GraphTest, TestBinaryOperations) {
 TEST(GraphTest, TestCompare) {
     auto ic = IrConstructor();
     ic.CreateInst<Opcode::Start>(0);
-    ic.CreateInst<Opcode::Region>(1).Inputs(0);
+    ic.CreateInst<Opcode::Region>(7).Inputs(0);
     ic.CreateInst<Opcode::Constant>(2).Imm(0);
     ic.CreateInst<Opcode::Constant>(3).Imm(1);
     ic.CreateInst<Opcode::Compare>(4).Inputs(2, 3).CC(ConditionCode::EQ);
     ic.CreateInst<Opcode::Region>(6);
-    ic.CreateInst<Opcode::If>(5).Inputs(1, 4).Branches(6, 1);
-    ic.CreateInst<Opcode::Start>(7).Inputs(6);
+    ic.CreateInst<Opcode::If>(5).Inputs(7, 4).Branches(6, 7);
+    ic.CreateInst<Opcode::Start>(1).Inputs(6);
 
     std::ostringstream dump_out;
     std::string output =
     "Method: \n"
     "Instructions:\n"
-    "   0.    Start       -> v1\n"
-    "   1.    Region     v0, v5 -> v5\n"
+    "   0.    Start       -> v7\n"
+    "   1.    Start      v6\n"
     "   2.i64 Constant   0x0 -> v4\n"
     "   3.i64 Constant   0x1 -> v4\n"
     "   4.b   Compare    EQ v2, v3 -> v5\n"
-    "   5.    If         [T:->v6 F:->v1] v1, v4\n"
-    "   6.    Region     v5 -> v7\n"
-    "   7.    Start      v6\n";
+    "   5.    If         v7, v4 -> T:v6, F:v7\n"
+    "   6.    Region     v5 -> v1\n"
+    "   7.    Region     v0, v5 -> v5\n";
     ic.GetGraph()->Dump(dump_out);
     ASSERT_EQ(dump_out.str(), output);
 }
@@ -253,29 +259,29 @@ TEST(GraphTest, TestPhi) {
     auto ic = IrConstructor();
     ic.CreateInst<Opcode::Start>(0);
     ic.CreateInst<Opcode::Constant>(8).Imm(2);
-    ic.CreateInst<Opcode::Region>(1).Inputs(0);
+    ic.CreateInst<Opcode::Region>(7).Inputs(0);
     ic.CreateInst<Opcode::Constant>(2).Imm(0);
-    ic.CreateInst<Opcode::Phi>(9).Inputs(1, 8, 2);
+    ic.CreateInst<Opcode::Phi>(9).Inputs(7, 8, 2);
     ic.CreateInst<Opcode::Constant>(3).Imm(1);
     ic.CreateInst<Opcode::Compare>(4).Inputs(2, 3).CC(ConditionCode::EQ);
     ic.CreateInst<Opcode::Region>(6);
-    ic.CreateInst<Opcode::If>(5).Inputs(1, 4).Branches(6, 1);
-    ic.CreateInst<Opcode::Start>(7).Inputs(6);
+    ic.CreateInst<Opcode::If>(5).Inputs(7, 4).Branches(6, 7);
+    ic.CreateInst<Opcode::Start>(1).Inputs(6);
 
     std::ostringstream dump_out;
     std::string output =
     "Method: \n"
     "Instructions:\n"
-    "   0.    Start       -> v1\n"
-    "   1.    Region     v0, v5 -> v9, v5\n"
+    "   0.    Start       -> v7\n"
+    "   1.    Start      v6\n"
     "   2.i64 Constant   0x0 -> v9, v4\n"
     "   3.i64 Constant   0x1 -> v4\n"
     "   4.b   Compare    EQ v2, v3 -> v5\n"
-    "   5.    If         [T:->v6 F:->v1] v1, v4\n"
-    "   6.    Region     v5 -> v7\n"
-    "   7.    Start      v6\n"
+    "   5.    If         v7, v4 -> T:v6, F:v7\n"
+    "   6.    Region     v5 -> v1\n"
+    "   7.    Region     v0, v5 -> v5, v9\n"
     "   8.i64 Constant   0x2 -> v9\n"
-    "   9.    Phi        v1, v8(R0), v2(R5)\n";
+    "   9.    Phi        v7, v8(R0), v2(R5)\n";
     ic.GetGraph()->Dump(dump_out);
     ASSERT_EQ(dump_out.str(), output);
 }
@@ -283,16 +289,43 @@ TEST(GraphTest, TestPhi) {
 TEST(GraphTest, TestParameterReturn) {
     auto ic = IrConstructor();
     ic.CreateInst<Opcode::Start>(0);
-    ic.CreateInst<Opcode::Parameter>(1).Imm(2);
-    ic.CreateInst<Opcode::Return>(2).Inputs(0, 1);
+    ic.CreateInst<Opcode::Region>(2).Inputs(0);
+    ic.CreateInst<Opcode::Parameter>(3).Imm(2);
+    ic.CreateInst<Opcode::Return>(4).Inputs(2, 3);
+    ic.CreateInst<Opcode::Start>(1).Inputs(4);
 
     std::ostringstream dump_out;
     std::string output =
     "Method: \n"
     "Instructions:\n"
     "   0.    Start       -> v2\n"
-    "   1.    Parameter   -> v2\n"
-    "   2.    Return     v0, v1\n";
+    "   1.    Start      v4\n"
+    "   2.    Region     v0 -> v4\n"
+    "   3.    Parameter   -> v4\n"
+    "   4.    Return     v2, v3 -> v1\n";
+    ic.GetGraph()->Dump(dump_out);
+    ASSERT_EQ(dump_out.str(), output);
+}
+
+TEST(GraphTest, TestCall) {
+    auto ic = IrConstructor();
+    ic.CreateInst<Opcode::Start>(0);
+    ic.CreateInst<Opcode::Region>(2).Inputs(0);
+    ic.CreateInst<Opcode::Constant>(3).Imm(4);
+    ic.CreateInst<Opcode::Call>(4).Inputs(2, 3);
+    ic.CreateInst<Opcode::Return>(5).Inputs(4, 4);
+    ic.CreateInst<Opcode::Start>(1).Inputs(5);
+
+    std::ostringstream dump_out;
+    std::string output =
+    "Method: \n"
+    "Instructions:\n"
+    "   0.    Start       -> v2\n"
+    "   1.    Start      v5\n"
+    "   2.    Region     v0 -> v4\n"
+    "   3.i64 Constant   0x4 -> v4\n"
+    "   4.    Call       v2, v3 -> v5, v5\n"
+    "   5.    Return     v4, v4 -> v1\n";
     ic.GetGraph()->Dump(dump_out);
     ASSERT_EQ(dump_out.str(), output);
 }
