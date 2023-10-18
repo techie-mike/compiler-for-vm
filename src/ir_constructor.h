@@ -42,21 +42,6 @@ public:
         return *this;
     }
 
-    IrConstructor &CfgUser(id_t index) {
-        ASSERT(current_inst_ != nullptr);
-        auto inst = GetGraph()->GetInstByIndex(index);
-        switch(current_inst_->GetOpcode()) {
-            case Opcode::Call: {
-                static_cast<CallInst *>(current_inst_)->SetCFGUser(inst);
-                break;
-            }
-            default: {
-                ASSERT(false && ("Should be unreachable!"));
-            }
-        }
-        return *this;
-    }
-
     IrConstructor &CC(ConditionCode cc) {
         ASSERT(current_inst_ != nullptr);
 
@@ -75,32 +60,87 @@ public:
     IrConstructor &Branches(id_t true_br, id_t false_br) {
         ASSERT(current_inst_ != nullptr);
         if (current_inst_->GetOpcode() != Opcode::If) {
-            ASSERT(false && ("Should be unreachable!"));
+            UNREACHABLE();
         }
-        static_cast<IfInst *>(current_inst_)->SetTrueBranch(GetGraph()->GetInstByIndex(true_br));
-        static_cast<IfInst *>(current_inst_)->SetFalseBranch(GetGraph()->GetInstByIndex(false_br));
+        ifs_.push_back({current_inst_->GetId(), true_br, false_br});
+        return *this;
+    }
+
+    IrConstructor &JmpTo(id_t id) {
+        if (current_inst_->GetOpcode() != Opcode::Jump) {
+            UNREACHABLE();
+        }
+        jmps_.push_back({current_inst_->GetId(), id});
         return *this;
     }
 
     template<typename... Args>
-    IrConstructor &Inputs(Args ...args) {
+    IrConstructor &DataInputs(Args ...args) {
         for (auto it : {args...}) {
             static_assert(std::is_same<decltype(it), int>(), "Is not \"Int\" in argument");
         }
         auto inputs = std::vector<int>({args...});
         for (size_t i = 0; i < inputs.size(); i++) {
-            current_inst_->SetInput(i, graph_->GetInstByIndex(inputs.at(i)));
+            current_inst_->SetDataInput(i, graph_->GetInstByIndex(inputs.at(i)));
         }
         return *this;
     }
 
-    Graph *GetGraph() {
+    IrConstructor &CtrlInput(id_t id) {
+        auto inst = GetGraph()->GetInstByIndex(id);
+        current_inst_->SetControlInput(inst);
+        return *this;
+    }
+
+    void FinalizeRegions() {
+        if (finalized_) {
+            return;
+        }
+        for (auto &jmp : jmps_) {
+            auto inst = static_cast<JumpInst *>(GetGraph()->GetInstByIndex(jmp.id));
+            auto region = GetGraph()->GetInstByIndex(jmp.jmp_to);
+            inst->SetJmpTo(region);
+        }
+
+        for (auto &if_it : ifs_) {
+            auto inst = static_cast<IfInst *>(GetGraph()->GetInstByIndex(if_it.id));
+            auto region_true = GetGraph()->GetInstByIndex(if_it.jmp_true);
+            auto region_false = GetGraph()->GetInstByIndex(if_it.jmp_false);
+
+            inst->SetTrueBranch(region_true);
+            inst->SetFalseBranch(region_false);
+        }
+        finalized_ = true;
+    }
+    Graph *GetFinalGraph() {
+        if (!finalized_) {
+            FinalizeRegions();
+        }
         return graph_;
     }
 
 private:
+    Graph *GetGraph() {
+        return graph_;
+    }
+    struct Jump {
+        id_t id;
+        id_t jmp_to;
+    };
+
+    struct If {
+        id_t id;
+        id_t jmp_true;
+        id_t jmp_false;
+    };
+
+    std::vector<Jump> jmps_;
+    std::vector<If> ifs_;
+
+private:
     Graph *graph_;
     Inst *current_inst_;
+    bool finalized_ = false;
 };
 
 }

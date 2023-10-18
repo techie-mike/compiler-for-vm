@@ -5,77 +5,94 @@
 
 namespace compiler {
 
-bool Inst::IsControlInst() {
-    auto opc = GetOpcode();
-    return opc == Opcode::Start || opc == Opcode::Region;
-}
-
-bool Inst::IsDataInst() {
-    return !IsControlInst() && !IsHybridInst();
-}
-
-bool Inst::IsHybridInst() {
-    auto opc = GetOpcode();
-    return opc == Opcode::If || opc == Opcode::Call || opc == Opcode::Return;
-}
-
-bool Inst::IsControlInputInHybrid(Inst *inst) {
+void Inst::SetControlInput(Inst *inst) {
     ASSERT(inst != nullptr);
-    return inst->GetInput(0) == this;
+    ASSERT(HasControlProp());
+    SetInput(0, inst);
+    inst->SetControlUser(this);
 }
 
-bool Inst::IsDataInputInHybrid(Inst *inst) {
-    ASSERT(inst != nullptr);
-    for (size_t i = 1; i < NumInputs(); i++) {
-        if (inst == GetInput(i)) {
-            return true;
-        }
-    }
-    return false;
+Inst *Inst::GetControlInput() {
+    ASSERT(HasControlProp());
+    return GetInput(0);
 }
 
-void Inst::AddUser(Inst *inst) {
-    ASSERT(inst != nullptr);
-    // TODO Create more intuitive API
-    if (inst->IsControlInst() && IsControlInst() && GetOpcode() != Opcode::Start) {
-        *GetUsers().begin() = inst;
+void Inst::SetControlUser(Inst *inst) {
+    ASSERT(HasControlProp());
+    if (GetUsers().size() == 0) {
+        GetUsers().push_back(inst);
         return;
     }
-    if (inst->IsHybridInst()) {
-        if (IsControlInputInHybrid(inst)) {
-            *GetUsers().begin() = inst;
-        }
-        if (!inst->IsDataInputInHybrid(this)) {
-            return;
-        }
-    }
-    auto start_users = inst->IsControlInst() || IsHybridInst() ? ++users_.begin() : users_.begin();
-    if (std::find(start_users, users_.end(), inst) != users_.end() && inst!= nullptr) {
-        return;
-    }
-    users_.push_back(inst);
+    *GetUsers().begin() = inst;
 }
 
-void Inst::DeleteUser(Inst *inst) {
-    auto it = std::find(users_.begin(), users_.end(), inst);
-    ASSERT(it != users_.end());
+Inst *Inst::GetControlUser() {
+    ASSERT(HasControlProp());
+    ASSERT(GetUsers().size() > 0);
+    return *GetUsers().begin();
+}
+
+void Inst::SetDataInput(id_t index, Inst *inst) {
+    ASSERT(inst != nullptr);
+    ASSERT(index <= NumDataInputs());
+    if (HasControlProp()) {
+        index++;
+    }
+    SetInput(index, inst);
+    inst->AddDataUser(this);
+}
+
+Inst *Inst::GetDataInput(id_t index) {
+    if (HasControlProp()) {
+        index++;
+    }
+    return GetInput(index);
+}
+
+const std::list<Inst *> Inst::GetDataUsers() {
+    return std::list<Inst *>(StartIteratorDataUsers(), GetUsers().end());
+}
+
+void Inst::AddDataUser(Inst *inst) {
+    if (HasControlProp() && GetUsers().size() == 0) {
+        GetUsers().push_back(nullptr);
+    }
+    auto it = std::find(StartIteratorDataUsers(), GetUsers().end(), inst);
+    if (it != GetUsers().end()) {
+        return;
+    }
+    GetUsers().push_back(inst);
+}
+
+void Inst::DeleteDataUser(Inst *inst) {
+    auto it = std::find(StartIteratorDataUsers(), GetUsers().end(), inst);
+    ASSERT(it != GetUsers().end());
     users_.erase(it);
 }
 
-uint32_t Inst::NumUsers() {
-    return users_.size();
+uint32_t Inst::NumDataUsers() {
+    return HasControlProp() ? GetUsers().size() - 1 : GetUsers().size();
 }
 
-void CallInst::SetCFGUser(Inst *inst) {
-    ASSERT(NumUsers() >= 1);
-    ASSERT(inst->GetOpcode() != Opcode::Region);
-    // TODO Check that only one CFG user, maybe it should be in graph checker
-    *(GetUsers().begin()) = inst;
-    inst->SetInput(0, this);
+void DynamicInputs::SetInput(id_t index, Inst *inst) {
+    ASSERT(index <= NumAllInputs());
+    if (index == NumAllInputs()) {
+        inputs_.push_back(inst);
+        return;
+    }
+    auto it = inputs_.begin();
+    for (id_t i = 0; i < index; i++) {
+        it++;
+    }
+    *it = inst;
 }
 
-Inst *CallInst::GetCFGUser() {
-    return *(GetUsers().begin());
+Inst *DynamicInputs::GetInput(id_t index) {
+    auto it = inputs_.begin();
+    for (id_t i = 0; i < index; i++) {
+        it++;
+    }
+    return *it;
 }
 
 void Inst::Dump(std::ostream& out) {
@@ -95,7 +112,7 @@ void CompareInst::DumpOpcode(std::ostream& out) {
 }
 
 void Inst::DumpUsers(std::ostream& out) {
-    if (NumUsers() == 0) {
+    if (GetUsers().size() == 0) {
         return;
     }
     out << std::string(" -> ");
@@ -113,7 +130,7 @@ void Inst::DumpUsers(std::ostream& out) {
 }
 
 void IfInst::DumpUsers(std::ostream &out) {
-    ASSERT(NumUsers() == 2);
+    ASSERT(GetUsers().size() == 2);
     out << std::string(" -> ");
     bool first = true;
     for (auto inst : GetUsers()) {
@@ -129,25 +146,30 @@ void IfInst::DumpUsers(std::ostream &out) {
 }
 
 void PhiInst::DumpInputs(std::ostream &out) {
-    auto region = static_cast<RegionInst *>(GetInput(0));
-    if (NumInputs() != region->NumInputs() + 1) {
+    auto region = static_cast<RegionInst *>(GetControlInput());
+    if (NumDataInputs() != region->NumAllInputs()) {
         std::cerr << "Num inputs in PHI and regions not equal!\n";
         std::exit(1);
     }
-    auto it_region = region->GetInputs().begin();
-    bool first = true;
-    for (auto inst : GetInputs()) {
-        if (first) {
-            out << std::string("v") << std::to_string(inst->GetId());
-            first = false;
-            continue;
-        }
+    uint32_t i = 0;
+    out << std::string("v") << std::to_string(GetControlInput()->GetId());
+    for (auto inst : GetDataInputs()) {
         out << std::string(", ") << std::string("v") << std::to_string(inst->GetId()) << std::string("(R")
-            << std::to_string(static_cast<RegionInst *>(*it_region)->GetId()) << std::string(")");
-        first = false;
-        it_region++;
+            << std::to_string((region->GetRegionInput(i))->GetId()) << std::string(")");
+        i++;
     }
 }
+
+void DynamicInputs::DumpInputs(std::ostream &out) {
+        bool first = true;
+        for (auto inst : GetAllInputs()) {
+            if (inst == nullptr) {
+                continue;
+            }
+            out << std::string(first ? "" : ", ") << std::string("v") << std::to_string(inst->GetId());
+            first = false;
+        }
+    }
 
 std::string OpcodeToString(Opcode opc) {
     return OPCODE_NAME.at(static_cast<size_t>(opc));
