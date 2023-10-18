@@ -7,20 +7,22 @@ namespace compiler {
 
 //===================================================================
 
-#define OPCODE_LIST(ACTION) \
-    ACTION( Add         , BinaryOperation ) \
-    ACTION( Sub         , BinaryOperation ) \
-    ACTION( Mul         , BinaryOperation ) \
-    ACTION( Div         , BinaryOperation ) \
-    ACTION( Constant    , ConstantInst    ) \
-    ACTION( Start       , StartInst       ) \
-    ACTION( If          , IfInst          ) \
-    ACTION( Region      , RegionInst      ) \
-    ACTION( Compare     , CompareInst     ) \
-    ACTION( Phi         , PhiInst         ) \
-    ACTION( Return      , ReturnInst      ) \
-    ACTION( Parameter   , ParameterInst   ) \
-    ACTION( Call        , CallInst        )
+#define OPCODE_LIST(ACTION)                               \
+    ACTION( Add         , BinaryOperation               ) \
+    ACTION( Sub         , BinaryOperation               ) \
+    ACTION( Mul         , BinaryOperation               ) \
+    ACTION( Div         , BinaryOperation               ) \
+    ACTION( Constant    , ConstantInst                  ) \
+    ACTION( Start       , ControlProp<Inst>             ) \
+    ACTION( End         , ControlProp<DynamicInputs>    ) \
+    ACTION( If          , IfInst                        ) \
+    ACTION( Jump        , JumpInst                      ) \
+    ACTION( Region      , RegionInst                    ) \
+    ACTION( Compare     , CompareInst                   ) \
+    ACTION( Phi         , PhiInst                       ) \
+    ACTION( Return      , ReturnInst                    ) \
+    ACTION( Parameter   , ParameterInst                 ) \
+    ACTION( Call        , CallInst                      )
 
 enum class Opcode {
     NONE = 0,

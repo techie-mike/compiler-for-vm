@@ -3,9 +3,7 @@
 #include <cstdint>
 #include <array>
 #include <vector>
-#include <ios>
 #include <list>
-#include <initializer_list>
 #include <string>
 #include <iostream>
 #include <algorithm>
@@ -24,7 +22,9 @@ namespace compiler {
  * + Div
  * + Region
  * + Start
+ * + End
  * + If
+ * + Jump
  * + Phi
  * + Call
  * + Return
@@ -83,39 +83,58 @@ public:
         opc_ = opc;
     }
 
-    void AddUser(Inst *inst);
-    void DeleteUser(Inst *inst);
-
-    virtual Inst *GetInput([[maybe_unused]] id_t index) {
-        std::cerr << "Inst with opcode " << OPCODE_NAME[static_cast<size_t>(GetOpcode())] << " don't have inputs";
-        std::abort();
-    }
-
-    virtual void SetInput([[maybe_unused]] id_t index, [[maybe_unused]] Inst *inst) {
-        std::cerr << "Inst with opcode " << OPCODE_NAME[static_cast<size_t>(GetOpcode())] << " don't have inputs";
-        std::abort();
-    }
-
-    virtual uint32_t NumInputs() {
+    virtual uint32_t NumAllInputs() {
         return 0;
     }
+
+    uint32_t NumDataInputs() {
+        auto num_all = NumAllInputs();
+        ASSERT(num_all > 0);
+        return HasControlProp() ? num_all - 1 : num_all;
+    }
+
+    virtual bool HasControlProp() {
+        return false;
+    }
+
+    // Next functions not virtual for better perfomance
+    void SetControlInput(Inst *inst);
+    Inst *GetControlInput();
+
+    void SetControlUser(Inst *inst);
+    Inst *GetControlUser();
+
+    void SetDataInput(id_t index, Inst *inst);
+    Inst *GetDataInput(id_t index);
+
+    void AddDataUser(Inst *inst);
+    void DeleteDataUser(Inst *inst);
+
+    const std::list<Inst *> GetDataUsers();
 
     virtual void DumpInputs([[maybe_unused]] std::ostream &out) {};
     virtual void DumpUsers(std::ostream &out);
 
-    uint32_t NumUsers();
+    uint32_t NumDataUsers();
     std::list<Inst *> &GetUsers() {
         return users_;
     }
 
-    // Сlassification described in docs/ir.md
-    bool IsControlInst();
-    bool IsDataInst();
-    bool IsHybridInst();
+private:
 
-    bool IsControlInputInHybrid(Inst *inst);
-    bool IsDataInputInHybrid(Inst *inst);
+    virtual Inst *GetInput([[maybe_unused]] id_t index) {
+        std::cerr << "Inst with opcode " << OPCODE_NAME[static_cast<size_t>(GetOpcode())] << " don't have inputs\n";
+        UNREACHABLE();
+    }
 
+    virtual void SetInput([[maybe_unused]] id_t index, [[maybe_unused]] Inst *inst) {
+        std::cerr << "Inst with opcode " << OPCODE_NAME[static_cast<size_t>(GetOpcode())] << " don't have inputs\n";
+        UNREACHABLE();
+    }
+
+    auto StartIteratorDataUsers() {
+        return HasControlProp() ? ++GetUsers().begin() : GetUsers().begin();
+    }
 
 private:
     id_t id_;
@@ -148,33 +167,40 @@ public:
         }
     };
 
-    virtual Inst *GetInput(id_t index) override {
-        return inputs_.at(index);
-    }
-
-    const std::array<Inst *, N>& GetInputs() const {
-        return inputs_;
-    }
-
-    virtual void SetInput(id_t index, Inst *inst) override {
-        ASSERT(index < N);
-        inputs_.at(index) = inst;
-        inst->AddUser(this);
-    }
-
-    virtual uint32_t NumInputs() override {
+    virtual uint32_t NumAllInputs() override {
         return inputs_.size();
     }
 
     virtual void DumpInputs(std::ostream &out) override {
         bool first = true;
-        for (auto inst : GetInputs()) {
+        for (auto inst : GetAllInputs()) {
             if (inst == nullptr) {
                 continue;
             }
             out << std::string(first ? "" : ", ") << std::string("v") << std::to_string(inst->GetId());
             first = false;
         }
+    }
+
+    const std::array<Inst *, N> GetDataInputs() {
+        if (HasControlProp()) {
+            return std::array<Inst *, N>(++inputs_.begin(), inputs_.end());
+        }
+        return inputs_;
+    }
+
+private:
+    const std::array<Inst *, N> &GetAllInputs() {
+        return inputs_;
+    }
+
+    virtual Inst *GetInput(id_t index) override {
+        return inputs_.at(index);
+    }
+
+    virtual void SetInput(id_t index, Inst *inst) override {
+        ASSERT(index < N);
+        inputs_.at(index) = inst;
     }
 
 private:
@@ -196,10 +222,6 @@ public:
             Inst(opc),
             inputs_(inputs) {};
 
-    std::list<Inst *>& GetInputs() {
-        return inputs_;
-    }
-
     void AddInput(Inst *inst) {
         inputs_.push_back(inst);
     }
@@ -210,43 +232,28 @@ public:
         inputs_.erase(it);
     }
 
-    virtual void SetInput(id_t index, Inst *inst) override {
-        ASSERT(index <= NumInputs());
-        if (index == NumInputs()) {
-            inputs_.push_back(inst);
-            inst->AddUser(this);
-            return;
-        }
-        auto it = inputs_.begin();
-        for (id_t i = 0; i < index; i++) {
-            it++;
-        }
-        *it = inst;
-        inst->AddUser(this);
-    }
-
-    virtual Inst *GetInput(id_t index) override {
-        auto it = inputs_.begin();
-        for (id_t i = 0; i < index; i++) {
-            it++;
-        }
-        return *it;
-    }
-
-    virtual uint32_t NumInputs() override {
+    virtual uint32_t NumAllInputs() override {
         return inputs_.size();
     }
 
-    virtual void DumpInputs(std::ostream &out) override {
-        bool first = true;
-        for (auto inst : GetInputs()) {
-            if (inst == nullptr) {
-                continue;
-            }
-            out << std::string(first ? "" : ", ") << std::string("v") << std::to_string(inst->GetId());
-            first = false;
+    virtual void DumpInputs(std::ostream &out) override;
+
+    const std::list<Inst *> GetDataInputs() {
+        if (HasControlProp()) {
+            return std::list<Inst *>(++inputs_.begin(), inputs_.end());
         }
+        return inputs_;
     }
+
+    friend class RegionInst;
+private:
+    const std::list<Inst *>& GetAllInputs() {
+        return inputs_;
+    }
+
+    virtual void SetInput(id_t index, Inst *inst) override;
+
+    virtual Inst *GetInput(id_t index) override;
 
 private:
     std::list<Inst *> inputs_;
@@ -283,6 +290,18 @@ public:
 
 };
 
+// Maybe better create bit flag and don't use virtual call
+template <typename T>
+class ControlProp : public T
+{
+public:
+    using T::T;
+
+    bool HasControlProp() override {
+        return true;
+    }
+};
+
 class BinaryOperation : public FixedInputs<2>
 {
 public:
@@ -307,31 +326,37 @@ public:
     }
 };
 
-class StartInst : public FixedInputs<1>
+class RegionInst : public ControlProp<DynamicInputs>
 {
 public:
-    StartInst():
-        FixedInputs<1>(Opcode::Start) {}
-};
-
-class RegionInst : public DynamicInputs
-{
-public:
+    using Base = ControlProp<DynamicInputs>;
     RegionInst():
-        DynamicInputs(Opcode::Region)
+        Base(Opcode::Region)
     {
         // We reserved user0 for CFG node
         GetUsers().push_back(nullptr);
     }
+
+    Inst *GetRegionInput(uint32_t index) {
+        return GetInput(index);
+    }
+
+    // Input0 now is empty
+    void SetRegionInput(uint32_t index, Inst *inst) {
+        [[maybe_unused]] auto opc = inst->GetOpcode();
+        ASSERT(opc == Opcode::Start || opc == Opcode::Jump || opc == Opcode::If);
+        SetInput(index, inst);
+    }
 };
 
-class IfInst : public FixedInputs<2>
+class IfInst : public ControlProp<FixedInputs<2>>
 {
 public:
+    using Base = ControlProp<FixedInputs<2>>;
     // First input is Region
     // Second input is Bool condition value
     IfInst():
-        FixedInputs<2>(Opcode::If)
+        Base(Opcode::If)
     {
         // True branch (user0)
         GetUsers().push_back(nullptr);
@@ -350,16 +375,30 @@ public:
     void SetTrueBranch(Inst *inst) {
         ASSERT(inst->GetOpcode() == Opcode::Region);
         *(GetUsers().begin()) = inst;
-        static_cast<RegionInst *>(inst)->AddInput(this);
+        static_cast<RegionInst *>(inst)->SetRegionInput(inst->NumAllInputs(), this);
     }
 
     void SetFalseBranch(Inst *inst) {
         ASSERT(inst->GetOpcode() == Opcode::Region);
         *(++GetUsers().begin()) = inst;
-        static_cast<RegionInst *>(inst)->AddInput(this);
+        static_cast<RegionInst *>(inst)->SetRegionInput(inst->NumAllInputs(), this);
     }
 
     virtual void DumpUsers(std::ostream &out) override;
+};
+
+class JumpInst : public ControlProp<FixedInputs<1>>
+{
+public:
+    using Base = ControlProp<FixedInputs<1>>;
+    JumpInst():
+        Base(Opcode::Jump) {}
+
+    void SetJmpTo(Inst *inst) {
+        ASSERT(inst->GetOpcode() == Opcode::Region);
+        SetControlUser(inst);
+        static_cast<RegionInst *>(inst)->SetRegionInput(inst->NumAllInputs(), this);
+    }
 };
 
 class CompareInst : public FixedInputs<2>
@@ -382,20 +421,22 @@ private:
     ConditionCode cc_;
 };
 
-class PhiInst : public DynamicInputs
+class PhiInst : public ControlProp<DynamicInputs>
 {
 public:
+    using Base = ControlProp<DynamicInputs>;
     PhiInst():
-        DynamicInputs(Opcode::Phi) {};
+        Base(Opcode::Phi) {};
 
     virtual void DumpInputs(std::ostream &out) override;
 };
 
-class ReturnInst : public FixedInputs<2>
+class ReturnInst : public ControlProp<FixedInputs<2>>
 {
 public:
+    using Base = ControlProp<FixedInputs<2>>;
     ReturnInst():
-        FixedInputs<2>(Opcode::Return) {};
+        Base(Opcode::Return) {};
 };
 
 class ParameterInst : public Inst
@@ -424,18 +465,13 @@ private:
 // Users:
 // 0) CFG element
 // 1, ...) - users of return value
-class CallInst : public DynamicInputs
+class CallInst : public ControlProp<DynamicInputs>
 {
 public:
+    using Base = ControlProp<DynamicInputs>;
     CallInst():
-        DynamicInputs(Opcode::Call),
-        name_func_()
-    {
-        // We reserved user0 for CFG node
-        GetUsers().push_back(nullptr);
-        // We reserved input0 for CFG node
-        GetInputs().push_back(nullptr);
-    };
+        Base(Opcode::Call),
+        name_func_() {};
 
     void SetCFGUser(Inst *inst);
     Inst *GetCFGUser();

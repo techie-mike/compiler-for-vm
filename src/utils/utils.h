@@ -10,7 +10,13 @@ void PrintAssertionFailed(const char *cond, const char *file, int line, const ch
 #define ASSERT(cond)                                                    \
     if (!(cond)) {                                                      \
         PrintAssertionFailed(#cond, __FILE__, __LINE__, __FUNCTION__);  \
+        std::abort();                                                   \
     }
+
+#define UNREACHABLE()                                                   \
+    PrintAssertionFailed("UNREACHABLE", __FILE__, __LINE__, __FUNCTION__);  \
+    std::abort();
+
 #else
 
 #define ASSERT(cond) static_cast<void>(0)

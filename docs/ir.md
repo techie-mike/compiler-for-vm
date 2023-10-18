@@ -22,12 +22,11 @@ It is:
 * Mul
 * Constant
 * Parameter
-* Phi (it is exception)
 e.t.c
 
 ## 3) Hybrid
 
-It is instruction which in `input0` have control instruction and in others have data instructions (or data instructions may not exist). Exception to the rule: **Phi**, because this instruction does not participate in further CFG, but accepts `Control` inst with it.
+It is instruction which in `input0` have control instruction and in others have data instructions (or data instructions may not exist).
 
 It is:
 * If
