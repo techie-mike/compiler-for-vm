@@ -14,12 +14,12 @@ void PrintAssertionFailed(const char *cond, const char *file, int line, const ch
     }
 
 #define UNREACHABLE()                                                   \
-    PrintAssertionFailed("UNREACHABLE", __FILE__, __LINE__, __FUNCTION__);  \
-    std::abort();
+    __builtin_unreachable();                                            \
 
 #else
 
-#define ASSERT(cond) static_cast<void>(0)
+#define ASSERT(cond) ;
+#define UNREACHABLE() ;
 
 #endif
 }

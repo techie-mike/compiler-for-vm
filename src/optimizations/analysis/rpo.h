@@ -1,0 +1,38 @@
+#pragma once
+
+#include "graph.h"
+#include "marker.h"
+
+namespace compiler {
+
+class RpoRegions
+{
+public:
+    RpoRegions(Graph *graph);
+
+    void Run();
+    void DFSRegions(Inst *inst, Marker &marker);
+    std::vector<Inst *> &GetVector();
+
+private:
+    void AddInstInVector(Inst *inst);
+    std::vector<Inst *> rpo_regions_;
+    Graph *graph_;
+};
+
+class RpoInsts
+{
+public:
+    RpoInsts(Graph *graph);
+
+    void Run();
+    void DFSInsts(Inst *inst, Marker &marker);
+    std::vector<Inst *> &GetVector();
+
+private:
+    void AddInstInVector(Inst *inst);
+    std::vector<Inst *> rpo_insts_;
+    Graph *graph_;
+};
+
+}

@@ -12,8 +12,21 @@ add_executable(
 )
 
 target_include_directories(graph_tests PUBLIC "${CMAKE_SOURCE_DIR}/src")
+
 target_link_libraries(
     graph_tests
+    GTest::gtest_main
+)
+
+add_executable(
+    analysis_tests
+    analysis_tests.cpp
+    graph_comparator.cpp
+    ${COMPILER_SOURCES}
+)
+target_include_directories(analysis_tests PUBLIC "${CMAKE_SOURCE_DIR}/src")
+target_link_libraries(
+    analysis_tests
     GTest::gtest_main
 )
 
@@ -27,6 +40,11 @@ add_custom_target(
 )
 
 add_custom_target(
+    analysis_tests_gtest
+    COMMAND analysis_tests
+)
+
+add_custom_target(
     tests
-    DEPENDS graph_tests_gtest
+    DEPENDS graph_tests_gtest analysis_tests_gtest
 )

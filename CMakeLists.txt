@@ -12,6 +12,9 @@ set(COMPILER_SOURCES
     ${CMAKE_SOURCE_DIR}/src/graph.cpp
     ${CMAKE_SOURCE_DIR}/src/inst.cpp
     ${CMAKE_SOURCE_DIR}/src/utils/utils.cpp
+    ${CMAKE_SOURCE_DIR}/src/optimizations/analysis/rpo.cpp
+    ${CMAKE_SOURCE_DIR}/src/optimizations/analysis/analysis.cpp
+    ${CMAKE_SOURCE_DIR}/src/optimizations/analysis/domtree.cpp
 )
 
 add_subdirectory(tests)

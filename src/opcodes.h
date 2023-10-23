@@ -13,8 +13,8 @@ namespace compiler {
     ACTION( Mul         , BinaryOperation               ) \
     ACTION( Div         , BinaryOperation               ) \
     ACTION( Constant    , ConstantInst                  ) \
-    ACTION( Start       , ControlProp<Inst>             ) \
-    ACTION( End         , ControlProp<DynamicInputs>    ) \
+    ACTION( Start       , StartInst                     ) \
+    ACTION( End         , EndInst                       ) \
     ACTION( If          , IfInst                        ) \
     ACTION( Jump        , JumpInst                      ) \
     ACTION( Region      , RegionInst                    ) \
