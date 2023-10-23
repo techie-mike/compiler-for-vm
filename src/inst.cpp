@@ -8,13 +8,13 @@ namespace compiler {
 void Inst::SetControlInput(Inst *inst) {
     ASSERT(inst != nullptr);
     ASSERT(HasControlProp());
-    SetInput(0, inst);
+    SetRawInput(0, inst);
     inst->SetControlUser(this);
 }
 
 Inst *Inst::GetControlInput() {
     ASSERT(HasControlProp());
-    return GetInput(0);
+    return GetRawInput(0);
 }
 
 void Inst::SetControlUser(Inst *inst) {
@@ -38,7 +38,7 @@ void Inst::SetDataInput(id_t index, Inst *inst) {
     if (HasControlProp()) {
         index++;
     }
-    SetInput(index, inst);
+    SetRawInput(index, inst);
     inst->AddDataUser(this);
 }
 
@@ -46,7 +46,7 @@ Inst *Inst::GetDataInput(id_t index) {
     if (HasControlProp()) {
         index++;
     }
-    return GetInput(index);
+    return GetRawInput(index);
 }
 
 const std::list<Inst *> Inst::GetDataUsers() {
@@ -74,7 +74,7 @@ uint32_t Inst::NumDataUsers() {
     return HasControlProp() ? GetUsers().size() - 1 : GetUsers().size();
 }
 
-void DynamicInputs::SetInput(id_t index, Inst *inst) {
+void DynamicInputs::SetRawInput(id_t index, Inst *inst) {
     ASSERT(index <= NumAllInputs());
     if (index == NumAllInputs()) {
         inputs_.push_back(inst);
@@ -87,7 +87,7 @@ void DynamicInputs::SetInput(id_t index, Inst *inst) {
     *it = inst;
 }
 
-Inst *DynamicInputs::GetInput(id_t index) {
+Inst *DynamicInputs::GetRawInput(id_t index) {
     auto it = inputs_.begin();
     for (id_t i = 0; i < index; i++) {
         it++;

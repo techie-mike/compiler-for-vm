@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <array>
 #include <vector>
 #include <list>
 #include <string>
@@ -120,18 +119,19 @@ public:
         return users_;
     }
 
+    virtual Inst *GetRawInput([[maybe_unused]] id_t index) {
+        std::cerr << "Inst with opcode " << OPCODE_NAME[static_cast<size_t>(GetOpcode())] << " don't have inputs\n";
+        UNREACHABLE();
+        return nullptr;
+    }
+
+    virtual void SetRawInput([[maybe_unused]] id_t index, [[maybe_unused]] Inst *inst) {
+        std::cerr << "Inst with opcode " << OPCODE_NAME[static_cast<size_t>(GetOpcode())] << " don't have inputs\n";
+        UNREACHABLE();
+        return;
+    }
+
 private:
-
-    virtual Inst *GetInput([[maybe_unused]] id_t index) {
-        std::cerr << "Inst with opcode " << OPCODE_NAME[static_cast<size_t>(GetOpcode())] << " don't have inputs\n";
-        UNREACHABLE();
-    }
-
-    virtual void SetInput([[maybe_unused]] id_t index, [[maybe_unused]] Inst *inst) {
-        std::cerr << "Inst with opcode " << OPCODE_NAME[static_cast<size_t>(GetOpcode())] << " don't have inputs\n";
-        UNREACHABLE();
-    }
-
     auto StartIteratorDataUsers() {
         return HasControlProp() ? ++GetUsers().begin() : GetUsers().begin();
     }
@@ -189,18 +189,18 @@ public:
         return inputs_;
     }
 
-private:
-    const std::array<Inst *, N> &GetAllInputs() {
-        return inputs_;
-    }
-
-    virtual Inst *GetInput(id_t index) override {
+    virtual Inst *GetRawInput(id_t index) override {
         return inputs_.at(index);
     }
 
-    virtual void SetInput(id_t index, Inst *inst) override {
+    virtual void SetRawInput(id_t index, Inst *inst) override {
         ASSERT(index < N);
         inputs_.at(index) = inst;
+    }
+
+private:
+    const std::array<Inst *, N> &GetAllInputs() {
+        return inputs_;
     }
 
 private:
@@ -245,15 +245,13 @@ public:
         return inputs_;
     }
 
-    friend class RegionInst;
+    virtual void SetRawInput(id_t index, Inst *inst) override;
+    virtual Inst *GetRawInput(id_t index) override;
+
 private:
     const std::list<Inst *>& GetAllInputs() {
         return inputs_;
     }
-
-    virtual void SetInput(id_t index, Inst *inst) override;
-
-    virtual Inst *GetInput(id_t index) override;
 
 private:
     std::list<Inst *> inputs_;
@@ -331,23 +329,60 @@ class RegionInst : public ControlProp<DynamicInputs>
 public:
     using Base = ControlProp<DynamicInputs>;
     RegionInst():
-        Base(Opcode::Region)
-    {
-        // We reserved user0 for CFG node
-        GetUsers().push_back(nullptr);
-    }
+        Base(Opcode::Region) {}
 
     Inst *GetRegionInput(uint32_t index) {
-        return GetInput(index);
+        return GetRawInput(index);
     }
 
-    // Input0 now is empty
     void SetRegionInput(uint32_t index, Inst *inst) {
         [[maybe_unused]] auto opc = inst->GetOpcode();
         ASSERT(opc == Opcode::Start || opc == Opcode::Jump || opc == Opcode::If);
-        SetInput(index, inst);
+        SetRawInput(index, inst);
+    }
+
+    void SetDominator(Inst *inst) {
+        dominator_ = inst;
+    }
+
+    Inst *GetDominator() {
+        return dominator_;
+    }
+
+    void AddDominated(Inst *inst) {
+        dominated_.push_back(inst);
+        static_cast<RegionInst *>(inst)->SetDominator(this);
+    }
+
+    std::vector<Inst *> &GetDominated() {
+        return dominated_;
+    }
+
+private:
+    Inst *dominator_ = nullptr;
+    std::vector<Inst *> dominated_;
+};
+
+class StartInst : public RegionInst
+{
+public:
+    StartInst():
+        RegionInst()
+    {
+        SetOpcode(Opcode::Start);
     }
 };
+
+class EndInst : public RegionInst
+{
+public:
+    EndInst():
+        RegionInst()
+    {
+        SetOpcode(Opcode::End);
+    }
+};
+
 
 class IfInst : public ControlProp<FixedInputs<2>>
 {
@@ -395,7 +430,7 @@ public:
         Base(Opcode::Jump) {}
 
     void SetJmpTo(Inst *inst) {
-        ASSERT(inst->GetOpcode() == Opcode::Region);
+        ASSERT(inst->GetOpcode() == Opcode::Region || inst->GetOpcode() == Opcode::End);
         SetControlUser(inst);
         static_cast<RegionInst *>(inst)->SetRegionInput(inst->NumAllInputs(), this);
     }

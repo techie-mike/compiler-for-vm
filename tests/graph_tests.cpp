@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
-#include "inst.h"
-#include "graph.h"
 
+#include "graph.h"
 #include "ir_constructor.h"
 #include "graph_comparator.h"
 

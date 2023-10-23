@@ -1,12 +1,5 @@
 #pragma once
 
-#include <cassert>
-#include <istream>
-#include <vector>
-#include <string>
-#include <iostream>
-#include <sstream>
-
 #include "inst.h"
 
 namespace compiler {
@@ -29,8 +22,9 @@ public:
     std::string GetMethodName() const;
 
     void Dump(std::ostream &out);
+    void DumpDomTree(std::ostream &out);
 
-#define CREATE_CREATORS(OPCODE, BASE, ...)                                                  \
+#define CREATE_CREATORS(OPCODE, BASE)                                                       \
     template <typename... Args>                                                             \
     auto *Create##OPCODE##Inst(Args&&... args) {                                            \
         auto inst = new BASE(std::forward<Args>(args)...);                                  \
@@ -77,6 +71,10 @@ public:
 
     size_t GetNumInsts() {
         return all_inst_.size();
+    }
+
+    const std::vector<Inst *> &GetAllInsts() {
+        return all_inst_;
     }
 
 private:
