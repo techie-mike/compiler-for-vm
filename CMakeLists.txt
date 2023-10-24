@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.16)
 
 project(Compiler)
 
@@ -15,6 +15,7 @@ set(COMPILER_SOURCES
     ${CMAKE_SOURCE_DIR}/src/optimizations/analysis/rpo.cpp
     ${CMAKE_SOURCE_DIR}/src/optimizations/analysis/analysis.cpp
     ${CMAKE_SOURCE_DIR}/src/optimizations/analysis/domtree.cpp
+    ${CMAKE_SOURCE_DIR}/src/optimizations/analysis/loop_analysis.cpp
 )
 
 add_subdirectory(tests)

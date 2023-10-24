@@ -77,10 +77,33 @@ public:
         return all_inst_;
     }
 
+    uint32_t GetNumLoops() {
+        return num_loops_;
+    }
+
+    void IncNumLoops() {
+        num_loops_++;
+    }
+
+    void DecNumLoops() {
+        num_loops_--;
+    }
+
+    Loop *GetRootLoop() {
+        return root_loop_;
+    }
+
+    void SetRootLoop(Loop *loop) {
+        root_loop_ = loop;
+    }
+
 private:
+    uint32_t num_loops_ = 0;
     std::vector<Inst *> all_inst_;
     std::string name_method_;
     bool unit_test_mode_;
+
+    Loop *root_loop_ = nullptr;
 };
 
 }

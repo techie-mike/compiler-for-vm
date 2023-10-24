@@ -11,7 +11,7 @@ void DomTreeSlow::DFSRegions(Inst *region, std::vector<Inst *> &found, Marker &m
     found.push_back(region);
 
     auto branch = SkipBodyOfRegion(region);
-    for (auto way : branch->GetUsers()) {
+    for (auto way : branch->GetRawUsers()) {
         DFSRegions(way, found, marker);
     }
 }

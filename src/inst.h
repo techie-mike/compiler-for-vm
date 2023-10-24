@@ -32,6 +32,8 @@ namespace compiler {
  * ======================================================================================
 */
 
+class Loop;
+
 using id_t = uint32_t;
 
 std::string OpcodeToString(Opcode opc);
@@ -115,7 +117,7 @@ public:
     virtual void DumpUsers(std::ostream &out);
 
     uint32_t NumDataUsers();
-    std::list<Inst *> &GetUsers() {
+    std::list<Inst *> &GetRawUsers() {
         return users_;
     }
 
@@ -131,9 +133,13 @@ public:
         return;
     }
 
+    bool IsRegion() {
+        return GetOpcode() == Opcode::Start || GetOpcode() == Opcode::Region || GetOpcode() == Opcode::End;
+    }
+
 private:
     auto StartIteratorDataUsers() {
-        return HasControlProp() ? ++GetUsers().begin() : GetUsers().begin();
+        return HasControlProp() ? ++GetRawUsers().begin() : GetRawUsers().begin();
     }
 
 private:
@@ -331,6 +337,9 @@ public:
     RegionInst():
         Base(Opcode::Region) {}
 
+    // TODO: Fix Fouble free
+    virtual ~RegionInst() override;
+
     Inst *GetRegionInput(uint32_t index) {
         return GetRawInput(index);
     }
@@ -340,6 +349,8 @@ public:
         ASSERT(opc == Opcode::Start || opc == Opcode::Jump || opc == Opcode::If);
         SetRawInput(index, inst);
     }
+
+    virtual void DumpOpcode(std::ostream& out) override;
 
     void SetDominator(Inst *inst) {
         dominator_ = inst;
@@ -358,7 +369,25 @@ public:
         return dominated_;
     }
 
+    bool IsDominated(Inst *region) {
+        ASSERT(region->IsRegion());
+        auto res = std::find(dominated_.begin(), dominated_.end(), region);
+        return res != dominated_.end();
+    }
+
+    Loop *GetLoop() {
+        return loop_;
+    }
+
+    void SetLoop(Loop *loop) {
+        loop_ = loop;
+    }
+
+    bool IsLoopHeader();
+
 private:
+    Loop *loop_ {nullptr};
+
     Inst *dominator_ = nullptr;
     std::vector<Inst *> dominated_;
 };
@@ -394,28 +423,28 @@ public:
         Base(Opcode::If)
     {
         // True branch (user0)
-        GetUsers().push_back(nullptr);
+        GetRawUsers().push_back(nullptr);
         // False branch (user1)
-        GetUsers().push_back(nullptr);
+        GetRawUsers().push_back(nullptr);
     }
 
     Inst *GetTrueBranch() {
-        return *(GetUsers().begin());
+        return *(GetRawUsers().begin());
     }
 
     Inst *GetFalseBranch() {
-        return *(++GetUsers().begin());
+        return *(++GetRawUsers().begin());
     }
 
     void SetTrueBranch(Inst *inst) {
         ASSERT(inst->GetOpcode() == Opcode::Region);
-        *(GetUsers().begin()) = inst;
+        *(GetRawUsers().begin()) = inst;
         static_cast<RegionInst *>(inst)->SetRegionInput(inst->NumAllInputs(), this);
     }
 
     void SetFalseBranch(Inst *inst) {
         ASSERT(inst->GetOpcode() == Opcode::Region);
-        *(++GetUsers().begin()) = inst;
+        *(++GetRawUsers().begin()) = inst;
         static_cast<RegionInst *>(inst)->SetRegionInput(inst->NumAllInputs(), this);
     }
 

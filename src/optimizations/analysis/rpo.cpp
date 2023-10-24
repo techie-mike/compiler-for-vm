@@ -33,12 +33,13 @@ void RpoRegions::DFSRegions(Inst *init_region, [[maybe_unused]] Marker &marker) 
     AddInstInVector(init_region);
 }
 
-std::vector<Inst *> &RpoRegions::GetVector() {
+std::vector<RegionInst *> &RpoRegions::GetVector() {
     return rpo_regions_;
 }
 
 void RpoRegions::AddInstInVector(Inst *inst) {
-    rpo_regions_.push_back(inst);
+    ASSERT(inst->IsRegion());
+    rpo_regions_.push_back(static_cast<RegionInst *>(inst));
 }
 
 RpoInsts::RpoInsts(Graph *graph):
