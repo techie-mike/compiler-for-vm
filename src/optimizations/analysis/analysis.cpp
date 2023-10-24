@@ -12,4 +12,14 @@ Inst *SkipBodyOfRegion(Inst *inst) {
     return inst;
 }
 
+RegionInst *GetRegionByInputRegion(Inst *inst) {
+    ASSERT(inst->GetOpcode() == Opcode::Jump || inst->GetOpcode() == Opcode::If);
+
+    while (!inst->IsRegion()) {
+        inst = inst->GetControlInput();
+    }
+    return static_cast<RegionInst *>(inst);
+}
+
+
 }

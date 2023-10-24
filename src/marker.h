@@ -19,14 +19,23 @@ public:
         delete [] array_;
     }
 
-    void SetMarker(Inst *inst) {
+    void SetMarker(Inst *inst, bool value=true) {
         ASSERT(inst != nullptr);
-        array_[inst->GetId()] = true;
+        array_[inst->GetId()] = value;
     }
 
     bool IsMarked(Inst *inst) {
         ASSERT(inst != nullptr);
         return array_[inst->GetId()];
+    }
+
+    bool TrySetMarker(Inst *inst) {
+        ASSERT(inst != nullptr);
+        if (array_[inst->GetId()]) {
+            return true;
+        }
+        array_[inst->GetId()] = true;
+        return false;
     }
 
     void Clear() {

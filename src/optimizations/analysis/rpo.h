@@ -11,12 +11,12 @@ public:
     RpoRegions(Graph *graph);
 
     void Run();
-    void DFSRegions(Inst *inst, Marker &marker);
-    std::vector<Inst *> &GetVector();
+    std::vector<RegionInst *> &GetVector();
 
 private:
+    void DFSRegions(Inst *inst, Marker &marker);
     void AddInstInVector(Inst *inst);
-    std::vector<Inst *> rpo_regions_;
+    std::vector<RegionInst *> rpo_regions_;
     Graph *graph_;
 };
 

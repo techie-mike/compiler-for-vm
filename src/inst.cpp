@@ -3,6 +3,8 @@
 #include <string>
 #include <iomanip>
 
+#include "optimizations/analysis/loop_analysis.h"
+
 namespace compiler {
 
 void Inst::SetControlInput(Inst *inst) {
@@ -19,17 +21,17 @@ Inst *Inst::GetControlInput() {
 
 void Inst::SetControlUser(Inst *inst) {
     ASSERT(HasControlProp());
-    if (GetUsers().size() == 0) {
-        GetUsers().push_back(inst);
+    if (GetRawUsers().size() == 0) {
+        GetRawUsers().push_back(inst);
         return;
     }
-    *GetUsers().begin() = inst;
+    *GetRawUsers().begin() = inst;
 }
 
 Inst *Inst::GetControlUser() {
     ASSERT(HasControlProp());
-    ASSERT(GetUsers().size() > 0);
-    return *GetUsers().begin();
+    ASSERT(GetRawUsers().size() > 0);
+    return *GetRawUsers().begin();
 }
 
 void Inst::SetDataInput(id_t index, Inst *inst) {
@@ -50,28 +52,28 @@ Inst *Inst::GetDataInput(id_t index) {
 }
 
 const std::list<Inst *> Inst::GetDataUsers() {
-    return std::list<Inst *>(StartIteratorDataUsers(), GetUsers().end());
+    return std::list<Inst *>(StartIteratorDataUsers(), GetRawUsers().end());
 }
 
 void Inst::AddDataUser(Inst *inst) {
-    if (HasControlProp() && GetUsers().size() == 0) {
-        GetUsers().push_back(nullptr);
+    if (HasControlProp() && GetRawUsers().size() == 0) {
+        GetRawUsers().push_back(nullptr);
     }
-    auto it = std::find(StartIteratorDataUsers(), GetUsers().end(), inst);
-    if (it != GetUsers().end()) {
+    auto it = std::find(StartIteratorDataUsers(), GetRawUsers().end(), inst);
+    if (it != GetRawUsers().end()) {
         return;
     }
-    GetUsers().push_back(inst);
+    GetRawUsers().push_back(inst);
 }
 
 void Inst::DeleteDataUser(Inst *inst) {
-    auto it = std::find(StartIteratorDataUsers(), GetUsers().end(), inst);
-    ASSERT(it != GetUsers().end());
+    auto it = std::find(StartIteratorDataUsers(), GetRawUsers().end(), inst);
+    ASSERT(it != GetRawUsers().end());
     users_.erase(it);
 }
 
 uint32_t Inst::NumDataUsers() {
-    return HasControlProp() ? GetUsers().size() - 1 : GetUsers().size();
+    return HasControlProp() ? GetRawUsers().size() - 1 : GetRawUsers().size();
 }
 
 void DynamicInputs::SetRawInput(id_t index, Inst *inst) {
@@ -111,13 +113,38 @@ void CompareInst::DumpOpcode(std::ostream& out) {
     out << std::setw(10) << std::left << OpcodeToString(GetOpcode()) << std::string(" ") << CcToString(GetCC()) << std::string(" ");
 }
 
+void RegionInst::DumpOpcode(std::ostream& out) {
+    out << std::setw(10) << std::left << OpcodeToString(GetOpcode()) << std::string(" ");
+    if (loop_ == nullptr) {
+        return;
+    }
+
+    out << std::string("[Loop:");
+    if (GetLoop()->GetId() == 0) {
+        out << "root";
+    } else {
+        out << GetLoop()->GetId() << ", Depth:" << GetLoop()->GetDepth();
+    }
+    if (loop_->GetHeader() == this) {
+        out << std::string(", Header");
+    }
+    auto backedges = loop_->GetBackedges();
+    if (std::find(backedges.begin(), backedges.end(), this) != backedges.end()) {
+        out << std::string(", Backedge");
+    }
+    if (loop_->IsIrreducible()) {
+        out << std::string(", Irreducible");
+    }
+    out << std::string("] ");
+}
+
 void Inst::DumpUsers(std::ostream& out) {
-    if (GetUsers().size() == 0) {
+    if (GetRawUsers().size() == 0) {
         return;
     }
     out << std::string(" -> ");
     bool first = true;
-    for (auto inst : GetUsers()) {
+    for (auto inst : GetRawUsers()) {
         out << std::string(first ? "" : ", ");
         if (inst == nullptr) {
             out << std::string("NOT_SET");
@@ -130,10 +157,10 @@ void Inst::DumpUsers(std::ostream& out) {
 }
 
 void IfInst::DumpUsers(std::ostream &out) {
-    ASSERT(GetUsers().size() == 2);
+    ASSERT(GetRawUsers().size() == 2);
     out << std::string(" -> ");
     bool first = true;
-    for (auto inst : GetUsers()) {
+    for (auto inst : GetRawUsers()) {
         out << std::string(first ? "" : ", ");
         if (inst == nullptr) {
             out << std::string("NOT_SET");
@@ -181,6 +208,16 @@ std::string TypeToString(Type type) {
 
 std::string CcToString(ConditionCode cc) {
     return CC_NAME.at(static_cast<size_t>(cc));
+}
+
+RegionInst::~RegionInst() {
+    if (loop_ != nullptr) {
+        delete loop_;
+    }
+}
+
+bool RegionInst::IsLoopHeader() {
+    return GetLoop()->GetHeader() == this;
 }
 
 }
