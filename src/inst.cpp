@@ -238,6 +238,18 @@ void RegionInst::PushBackInst(Inst *inst) {
     last_ = inst;
 }
 
+void RegionInst::PushFrontInst(Inst *inst) {
+    inst->SetPlaced();
+    if (first_ == nullptr) {
+        AddFirstInst(inst);
+        return;
+    }
+
+    first_->SetPrev(inst);
+    inst->SetNext(first_);
+    first_ = inst;
+}
+
 RegionInst *Inst::CastToRegion() {
     ASSERT(IsRegion());
     return static_cast<RegionInst *>(this);

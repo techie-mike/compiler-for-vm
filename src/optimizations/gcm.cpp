@@ -33,7 +33,7 @@ void GCM::PlacingDataInst(Inst *inst, RegionInst *region) {
 
     auto opc = inst->GetOpcode();
     if (opc == Opcode::Constant || opc == Opcode::Parameter) {
-        graph_->GetStartRegion()->PushBackInst(inst);
+        graph_->GetStartRegion()->PushFrontInst(inst);
         inst->SetPlaced();
         return;
     }
@@ -51,13 +51,13 @@ void GCM::PlacingExitFromRegion(Inst *inst, RegionInst *region) {
     ASSERT(opc == Opcode::Jump || opc == Opcode::If);
     if (opc == Opcode::Jump) {
         // TODO: Find more good place for this fill
-        region->SetExitRegion(inst);
+        region->PushBackInst(inst);
         return;
     }
 
     if (opc == Opcode::If) {
         // TODO: Find more good place for this fill
-        region->SetExitRegion(inst);
+        region->PushBackInst(inst);
         PlacingDataInst(inst->GetDataInput(0), region);
         return;
     }

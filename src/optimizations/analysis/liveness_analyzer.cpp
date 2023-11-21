@@ -59,8 +59,8 @@ void LivenessAnalyzer::DumpLifeLinearData(std::ostream &out) {
             PrintLifeLinearData(inst, out);
         }
         if (region->GetOpcode() != Opcode::End) {
-            ASSERT(region->GetExitFromRegion());
-            auto inst = region->GetExitFromRegion();
+            ASSERT(region->GetLast());
+            auto inst = region->GetLast();
             inst->Dump(out);
             if (inst->GetOpcode() != Opcode::Jump) {
                 PrintLifeLinearData(inst, out);
@@ -81,16 +81,16 @@ void LivenessAnalyzer::PrintLifeLinearData(Inst *inst, std::ostream &out) {
 }
 
 void LivenessAnalyzer::BuildLifeIfJump(RegionInst *region, LinearNumber &linear_number, LifeNumber &life_number) {
-    if (region->GetExitFromRegion() == nullptr) {
+    if (region->GetLast() == nullptr) {
         return;
     }
 
-    if (region->GetExitFromRegion()->GetOpcode() == Opcode::If) {
-        region->GetExitFromRegion()->SetLinearNumber(linear_number++);
+    if (region->GetLast()->GetOpcode() == Opcode::If) {
+        region->GetLast()->SetLinearNumber(linear_number++);
     }
-    ASSERT(region->GetExitFromRegion()->GetOpcode() == Opcode::Jump);
+    ASSERT(region->GetLast()->GetOpcode() == Opcode::Jump);
     life_number += 2;
-    region->GetExitFromRegion()->SetLifeNumber(life_number);
+    region->GetLast()->SetLifeNumber(life_number);
 }
 
 }
