@@ -23,7 +23,7 @@ void GCM::Run() {
             PlacingDataInst(fixed_inst, region);
         }
     }
-    graph_->SetPlacedInsts();
+    graph_->SetInstsPlaced();
 }
 
 void GCM::PlacingDataInst(Inst *inst, RegionInst *region) {
@@ -31,22 +31,16 @@ void GCM::PlacingDataInst(Inst *inst, RegionInst *region) {
         return;
     }
 
+    auto opc = inst->GetOpcode();
+    if (opc == Opcode::Constant || opc == Opcode::Parameter) {
+        graph_->GetStartRegion()->PushBackInst(inst);
+        inst->SetPlaced();
+        return;
+    }
+
     for (uint32_t i = 0; i < inst->NumDataInputs(); i++) {
         auto input = inst->GetDataInput(i);
-
-        auto opc = input->GetOpcode();
-        if (opc == Opcode::Constant || opc == Opcode::Parameter) {
-            if (input->IsPlaced()) {
-                continue;
-            }
-            graph_->GetStartRegion()->PushBackInst(input);
-            input->SetPlaced();
-            continue;
-        }
-
         PlacingDataInst(input, region);
-        input->SetPlaced();
-        region->PushBackInst(input);
     }
     region->CastToRegion()->PushBackInst(inst);
     inst->SetPlaced();

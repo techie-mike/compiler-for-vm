@@ -121,11 +121,11 @@ public:
         return GetInstByIndex(0)->CastToRegion();
     }
 
-    void SetPlacedInsts() {
+    void SetInstsPlaced() {
         insts_placed_ = true;
     }
 
-    bool GetPlacedInsts() {
+    bool IsInstsPlaced() {
         return insts_placed_;
     }
 

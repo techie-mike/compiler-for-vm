@@ -4,6 +4,9 @@
 
 namespace compiler {
 
+
+// After graph can have less instrutions than was before, because during Global Code Motion
+// not added unused instructions in regions
 class GCM
 {
 public:
