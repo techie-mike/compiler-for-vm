@@ -220,4 +220,27 @@ bool RegionInst::IsLoopHeader() {
     return GetLoop()->GetHeader() == this;
 }
 
+void RegionInst::AddFirstInst(Inst *inst) {
+    ASSERT(first_ == nullptr && last_ == nullptr);
+    first_ = inst;
+    last_ = inst;
+}
+
+void RegionInst::PushBackInst(Inst *inst) {
+    inst->SetPlaced();
+    if (first_ == nullptr) {
+        AddFirstInst(inst);
+        return;
+    }
+
+    last_->SetNext(inst);
+    inst->SetPrev(last_);
+    last_ = inst;
+}
+
+RegionInst *Inst::CastToRegion() {
+    ASSERT(IsRegion());
+    return static_cast<RegionInst *>(this);
+}
+
 }

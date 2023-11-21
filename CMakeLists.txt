@@ -16,6 +16,7 @@ set(COMPILER_SOURCES
     ${CMAKE_SOURCE_DIR}/src/optimizations/analysis/analysis.cpp
     ${CMAKE_SOURCE_DIR}/src/optimizations/analysis/domtree.cpp
     ${CMAKE_SOURCE_DIR}/src/optimizations/analysis/loop_analysis.cpp
+    ${CMAKE_SOURCE_DIR}/src/optimizations/gcm.cpp
 )
 
 add_subdirectory(tests)

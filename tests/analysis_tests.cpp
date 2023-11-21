@@ -8,6 +8,8 @@
 #include "optimizations/analysis/domtree.h"
 #include "optimizations/analysis/loop_analysis.h"
 
+#include "optimizations/gcm.h"
+
 
 namespace compiler {
 
@@ -508,6 +510,51 @@ TEST(AnalysisTest, LoopAnalysisTestExample4) {
     la.Run();
 
     ic.GetFinalGraph()->Dump(std::cerr);
+}
+
+TEST(GcmTest, GcmTest1) {
+    auto ic = IrConstructor();
+    ic.CreateInst<Opcode::Start>(0);
+    ic.CreateInst<Opcode::Jump>(10).CtrlInput(0).JmpTo(3);
+
+    ic.CreateInst<Opcode::Region>(3);
+    ic.CreateInst<Opcode::Constant>(2).Imm(123);
+    ic.CreateInst<Opcode::Add>(4).DataInputs(2, 2);
+    ic.CreateInst<Opcode::Sub>(5).DataInputs(2, 2);
+    ic.CreateInst<Opcode::Mul>(6).DataInputs(2, 2);
+    ic.CreateInst<Opcode::Div>(7).DataInputs(2, 2);
+    ic.CreateInst<Opcode::Return>(8).CtrlInput(3).DataInputs(4);
+    ic.CreateInst<Opcode::Jump>(9).CtrlInput(8).JmpTo(1);
+
+    ic.CreateInst<Opcode::End>(1);
+
+    auto graph = ic.GetFinalGraph();
+
+    GCM(graph).Run();
+    graph->Dump(std::cerr);
+}
+
+TEST(GcmTest, GcmTest2) {
+    auto ic = IrConstructor();
+    ic.CreateInst<Opcode::Start>(0);
+    ic.CreateInst<Opcode::Jump>(10).CtrlInput(0).JmpTo(7);
+
+    ic.CreateInst<Opcode::Region>(7);
+    ic.CreateInst<Opcode::Constant>(8).Imm(2);
+    ic.CreateInst<Opcode::Constant>(2).Imm(0);
+    ic.CreateInst<Opcode::Phi>(9).CtrlInput(7).DataInputs(8, 2);
+
+    ic.CreateInst<Opcode::Constant>(3).Imm(1);
+    ic.CreateInst<Opcode::Compare>(4).DataInputs(2, 3).CC(ConditionCode::EQ);
+    ic.CreateInst<Opcode::If>(5).CtrlInput(9).DataInputs(4).Branches(6, 7);
+
+    ic.CreateInst<Opcode::Region>(6);
+    ic.CreateInst<Opcode::Jump>(11).CtrlInput(6);
+    ic.CreateInst<Opcode::End>(1).CtrlInput(11);
+
+    auto graph = ic.GetFinalGraph();
+    GCM(graph).Run();
+    graph->Dump(std::cerr);
 }
 
 }
