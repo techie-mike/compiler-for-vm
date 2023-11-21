@@ -17,6 +17,8 @@ set(COMPILER_SOURCES
     ${CMAKE_SOURCE_DIR}/src/optimizations/analysis/domtree.cpp
     ${CMAKE_SOURCE_DIR}/src/optimizations/analysis/loop_analysis.cpp
     ${CMAKE_SOURCE_DIR}/src/optimizations/gcm.cpp
+    ${CMAKE_SOURCE_DIR}/src/optimizations/analysis/linear_order.cpp
+    ${CMAKE_SOURCE_DIR}/src/optimizations/analysis/liveness_analyzer.cpp
 )
 
 add_subdirectory(tests)

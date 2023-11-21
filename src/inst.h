@@ -35,6 +35,8 @@ namespace compiler {
 class Loop;
 
 using id_t = uint32_t;
+using LinearNumber = uint32_t;
+using LifeNumber = uint32_t;
 
 std::string OpcodeToString(Opcode opc);
 std::string CcToString(ConditionCode cc);
@@ -165,6 +167,22 @@ public:
         inst_placed_ = true;
     }
 
+    void SetLinearNumber(LinearNumber value) {
+        linear_number_ = value;
+    }
+
+    LinearNumber GetLinearNumber() {
+        return linear_number_;
+    }
+
+    void SetLifeNumber(LifeNumber value) {
+        life_number_ = value;
+    }
+
+    LifeNumber GetLifeNumber() {
+        return life_number_;
+    }
+
 private:
     auto StartIteratorDataUsers() {
         return HasControlProp() ? ++GetRawUsers().begin() : GetRawUsers().begin();
@@ -173,6 +191,8 @@ private:
 private:
     bool inst_placed_ = false;
     id_t id_;
+    LinearNumber linear_number_;
+    LifeNumber life_number_;
     Opcode opc_;
     Type type_;
 

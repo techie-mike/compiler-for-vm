@@ -9,6 +9,8 @@
 #include "optimizations/analysis/loop_analysis.h"
 
 #include "optimizations/gcm.h"
+#include "optimizations/analysis/linear_order.h"
+#include "optimizations/analysis/liveness_analyzer.h"
 
 
 namespace compiler {
@@ -557,4 +559,78 @@ TEST(GcmTest, GcmTest2) {
     graph->Dump(std::cerr);
 }
 
+TEST(LinearOrder, LinearOrder1) {
+    auto ic = IrConstructor();
+    ic.CreateInst<Opcode::Constant>(5).Imm(0);
+
+    ic.CreateInst<Opcode::Start>(0);
+    ic.CreateInst<Opcode::Jump>(2).CtrlInput(0).JmpTo(3);
+
+    ic.CreateInst<Opcode::Region>(3);
+    ic.CreateInst<Opcode::Jump>(4).CtrlInput(3).JmpTo(6);
+
+    ic.CreateInst<Opcode::Region>(6);
+    ic.CreateInst<Opcode::If>(8).CtrlInput(6).DataInputs(5).Branches(9, 12);
+
+    ic.CreateInst<Opcode::Region>(9);
+    ic.CreateInst<Opcode::If>(10).CtrlInput(9).DataInputs(5).Branches(14, 17);
+
+    ic.CreateInst<Opcode::Region>(14);
+    ic.CreateInst<Opcode::Return>(15).DataInputs(5).CtrlInput(14);
+    ic.CreateInst<Opcode::Jump>(16).CtrlInput(15).JmpTo(1);
+
+    ic.CreateInst<Opcode::Region>(12);
+    ic.CreateInst<Opcode::Jump>(13).CtrlInput(12).JmpTo(17);
+
+    ic.CreateInst<Opcode::Region>(17);
+    ic.CreateInst<Opcode::Jump>(18).CtrlInput(17).JmpTo(19);
+
+
+    ic.CreateInst<Opcode::Region>(19);
+    ic.CreateInst<Opcode::If>(20).CtrlInput(19).DataInputs(5).Branches(21, 6);
+
+    ic.CreateInst<Opcode::Region>(21);
+    ic.CreateInst<Opcode::Jump>(22).CtrlInput(21).JmpTo(3);
+
+    ic.CreateInst<Opcode::End>(1);
+
+    auto graph = ic.GetFinalGraph();
+
+    GCM(graph).Run();
+    graph->Dump(std::cerr);
+
+    auto lo = LinearOrder(graph);
+    lo.Run();
+
+    std::vector<id_t> true_linear_order = {0, 3, 6, 12, 9, 17, 19, 21, 14, 1};
+
+    ASSERT_EQ(true_linear_order.size(), lo.GetVector().size());
+    for (id_t i = 0; i < lo.GetVector().size(); i++) {
+        ASSERT_EQ(lo.GetVector()[i]->GetId(), true_linear_order[i]);
+    }
+}
+
+TEST(LivenessAnalyzerTest, Test1) {
+    auto ic = IrConstructor();
+    ic.CreateInst<Opcode::Start>(0);
+    ic.CreateInst<Opcode::Jump>(10).CtrlInput(0).JmpTo(3);
+
+    ic.CreateInst<Opcode::Region>(3);
+    ic.CreateInst<Opcode::Constant>(2).Imm(123);
+    ic.CreateInst<Opcode::Add>(4).DataInputs(2, 2);
+    ic.CreateInst<Opcode::Sub>(5).DataInputs(2, 2);
+    ic.CreateInst<Opcode::Mul>(6).DataInputs(2, 2);
+    ic.CreateInst<Opcode::Div>(7).DataInputs(2, 2);
+    ic.CreateInst<Opcode::Return>(8).CtrlInput(3).DataInputs(4);
+    ic.CreateInst<Opcode::Jump>(9).CtrlInput(8).JmpTo(1);
+
+    ic.CreateInst<Opcode::End>(1);
+
+    auto graph = ic.GetFinalGraph();
+
+    GCM(graph).Run();
+    auto la = LivenessAnalyzer(graph);
+    la.Run();
+    graph->Dump(std::cerr);
+}
 }
