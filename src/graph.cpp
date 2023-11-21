@@ -111,10 +111,6 @@ void Graph::DumpPlacedInsts(std::ostream &out) {
         for (Inst *inst = region->GetFirst(); inst != nullptr; inst = inst->GetNext()) {
             inst->Dump(out);
         }
-        if (region->GetOpcode() != Opcode::End) {
-            ASSERT(region->GetExitFromRegion());
-            region->GetExitFromRegion()->Dump(out);
-        }
         out << "----------------------------\n";
         first = false;
     }

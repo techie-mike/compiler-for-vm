@@ -44,6 +44,7 @@ Loop *LoopAnalysis::CreateLoop(RegionInst *region) {
     region->SetLoop(loop);
     loop->SetId(graph_->GetNumLoops());
     loop->SetHeader(region);
+    loop->AddRegion(region);
     return loop;
 }
 

@@ -23,6 +23,20 @@ public:
         return *this;
     }
 
+    Inst *GetInst(id_t index) {
+        auto inst = graph_->GetInstByIndex(index);
+        current_inst_ = inst;
+        return inst;
+    }
+
+    RegionInst *GetRegion(id_t index) {
+        auto inst = graph_->GetInstByIndex(index);
+        if (!inst->IsRegion()) {
+            UNREACHABLE();
+        }
+        return inst->CastToRegion();
+    }
+
     IrConstructor &Imm(int64_t imm) {
         ASSERT(current_inst_ != nullptr);
 

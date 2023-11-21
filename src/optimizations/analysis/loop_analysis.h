@@ -43,15 +43,23 @@ public:
         return backedge_;
     }
 
+    bool LoopContaine(RegionInst *region) {
+        return std::find(body_.begin(), body_.end(), region) != body_.end();
+    }
+
     void AddBackedge(RegionInst *region) {
         ASSERT(std::find(backedge_.begin(), backedge_.end(), region) == backedge_.end())
         backedge_.push_back(region);
     }
 
     void AddRegion(RegionInst *region) {
-        ASSERT(std::find(body_.begin(), body_.end(),  region) == body_.end());
+        ASSERT(!LoopContaine(region));
         region->SetLoop(this);
         body_.push_back(region);
+    }
+
+    const std::vector<RegionInst *> &GetBody() {
+        return body_;
     }
 
     void SetOuterLoop(Loop *loop) {

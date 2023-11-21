@@ -439,6 +439,7 @@ public:
 
     bool IsLoopHeader();
     void PushBackInst(Inst *inst);
+    void PushFrontInst(Inst *inst);
 
     Inst *GetFirst() {
         return first_;
@@ -446,15 +447,6 @@ public:
 
     Inst *GetLast() {
         return last_;
-    }
-
-    Inst *GetExitFromRegion() {
-        return exit_region_;
-    }
-
-    void SetExitRegion(Inst *inst) {
-        ASSERT(inst->GetOpcode() == Opcode::If || inst->GetOpcode() == Opcode::Jump);
-        exit_region_ = inst;
     }
 
 private:

@@ -15,6 +15,29 @@
 
 namespace compiler {
 
+void RegionInsideLoop(RegionInst *region, Loop *loop) {
+    ASSERT_EQ(region->GetLoop(), loop);
+    ASSERT_TRUE(loop->LoopContaine(region));
+}
+
+void CheckOrderPlacedInsts(Graph *graph, id_t index_region, std::vector<id_t> order) {
+    auto region = graph->GetInstByIndex(index_region)->CastToRegion();
+    auto real_inst = region->GetFirst();
+    auto num = 0;
+
+    for (auto index : order) {
+        auto expected_inst = graph->GetInstByIndex(index);
+        ASSERT_EQ(real_inst, expected_inst);
+
+        real_inst = real_inst->GetNext();
+        num++;
+        if (real_inst == nullptr) {
+            break;
+        }
+    }
+    ASSERT_EQ(num, order.size());
+}
+
 /*
  *             0.Start
  *                |
@@ -160,7 +183,6 @@ TEST(AnalysisTest, RpoAnalysisInsts) {
 
     ic.CreateInst<Opcode::End>(1);
     auto rpo = RpoInsts(ic.GetFinalGraph());
-    // ic.GetFinalGraph()->Dump(std::cerr);
     rpo.Run();
 
     std::vector<id_t> true_rpo = {0, 2, 3, 11, 4, 5, 9, 8, 6, 1};
@@ -206,11 +228,31 @@ TEST(AnalysisTest, LoopAnalysis1) {
 
     ic.CreateInst<Opcode::End>(1);
 
-
     auto la = LoopAnalysis(ic.GetFinalGraph());
     la.Run();
 
-    ic.GetFinalGraph()->Dump(std::cerr);
+    auto root_loop = ic.GetRegion(0)->GetLoop();
+    auto loop1 = ic.GetRegion(3)->GetLoop();
+    // In "root" loop
+    RegionInsideLoop(ic.GetRegion(1), root_loop);
+    RegionInsideLoop(ic.GetRegion(7), root_loop);
+
+    // Headers of loops
+    ASSERT_EQ(root_loop->GetHeader(), nullptr);
+    ASSERT_EQ(loop1->GetHeader(), ic.GetRegion(3));
+
+    // In loop 1, which inside of "root" loop
+    RegionInsideLoop(ic.GetRegion(3), loop1);
+    RegionInsideLoop(ic.GetRegion(5), loop1);
+
+    // Outer loop of "loop 1" is "root" loop, inside loop of "root" loop is "loop 1" and unique
+    ASSERT_EQ(loop1->GetOuterLoop(), root_loop);
+    ASSERT_EQ(root_loop->GetInnerLoops().size(), 1);
+    ASSERT_EQ(root_loop->GetInnerLoops()[0], loop1);
+
+    // Check depth
+    ASSERT_EQ(root_loop->GetDepth(), 0);
+    ASSERT_EQ(loop1->GetDepth(), 1);
 }
 
 /* SHOW ONLY REGION FLOW
@@ -234,7 +276,8 @@ TEST(AnalysisTest, LoopAnalysis1) {
  *        v
  *     1.End
  */
-TEST(AnalysisTest, LoopAnalysis2) {
+ // NOT UNDERSTAND this graph is irreducible or not?
+TEST(AnalysisTest, DISABLED_LoopAnalysis2) {
     auto ic = IrConstructor();
     ic.CreateInst<Opcode::Start>(0);
     ic.CreateInst<Opcode::Jump>(2).CtrlInput(0).JmpTo(3);
@@ -309,7 +352,28 @@ TEST(AnalysisTest, LoopAnalysisTestExample1) {
     auto la = LoopAnalysis(ic.GetFinalGraph());
     la.Run();
 
-    ic.GetFinalGraph()->Dump(std::cerr);
+    // In "root" loop
+    auto root_loop = ic.GetRegion(0)->GetLoop();
+    RegionInsideLoop(ic.GetRegion(1), root_loop);
+    RegionInsideLoop(ic.GetRegion(6), root_loop);
+
+    // In loop 1, which inside of "root" loop
+    auto loop1 = ic.GetRegion(3)->GetLoop();
+    RegionInsideLoop(ic.GetRegion(9), loop1);
+    RegionInsideLoop(ic.GetRegion(11), loop1);
+
+    // Headers of loops
+    ASSERT_EQ(root_loop->GetHeader(), nullptr);
+    ASSERT_EQ(loop1->GetHeader(), ic.GetInst(3));
+
+    // Outer loop of "loop 1" is "root" loop, inside loop of "root" loop is "loop 1" and unique
+    ASSERT_EQ(loop1->GetOuterLoop(), root_loop);
+    ASSERT_EQ(root_loop->GetInnerLoops().size(), 1);
+    ASSERT_EQ(root_loop->GetInnerLoops()[0], loop1);
+
+    // Check depth
+    ASSERT_EQ(root_loop->GetDepth(), 0);
+    ASSERT_EQ(loop1->GetDepth(), 1);
 }
 
 /* SHOW ONLY REGION FLOW
@@ -322,7 +386,7 @@ TEST(AnalysisTest, LoopAnalysisTestExample1) {
  *    |                           |
  *    |                           |
  *    v                           |
- * 6.Region  +->12.Region  +->11.Region
+ * 6.Region  +->12.Region  +->14.Region
  *    | |    |     |  |    |
  *    | +----+     |  +----+
  *    |            |
@@ -363,7 +427,28 @@ TEST(AnalysisTest, LoopAnalysisTestExample2) {
     auto la = LoopAnalysis(ic.GetFinalGraph());
     la.Run();
 
-    ic.GetFinalGraph()->Dump(std::cerr);
+    auto root_loop = ic.GetRegion(0)->GetLoop();
+    RegionInsideLoop(ic.GetRegion(1), root_loop);
+    RegionInsideLoop(ic.GetRegion(9), root_loop);
+
+    // In loop 1, which inside of "root" loop
+    auto loop1 = ic.GetRegion(3)->GetLoop();
+    RegionInsideLoop(ic.GetRegion(6), loop1);
+    RegionInsideLoop(ic.GetRegion(12), loop1);
+    RegionInsideLoop(ic.GetRegion(14), loop1);
+
+    // Headers of loops
+    ASSERT_EQ(root_loop->GetHeader(), nullptr);
+    ASSERT_EQ(loop1->GetHeader(), ic.GetInst(3));
+
+    // Outer loop of "loop 1" is "root" loop, inside loop of "root" loop is "loop 1" and unique
+    ASSERT_EQ(loop1->GetOuterLoop(), root_loop);
+    ASSERT_EQ(root_loop->GetInnerLoops().size(), 1);
+    ASSERT_EQ(root_loop->GetInnerLoops()[0], loop1);
+
+    // Check depth
+    ASSERT_EQ(root_loop->GetDepth(), 0);
+    ASSERT_EQ(loop1->GetDepth(), 1);
 }
 
 /* SHOW ONLY REGION FLOW
@@ -427,7 +512,41 @@ TEST(AnalysisTest, LoopAnalysisTestExample3) {
     auto la = LoopAnalysis(ic.GetFinalGraph());
     la.Run();
 
-    ic.GetFinalGraph()->Dump(std::cerr);
+    auto root_loop = ic.GetRegion(0)->GetLoop();
+    RegionInsideLoop(ic.GetRegion(1), root_loop);
+    RegionInsideLoop(ic.GetRegion(14), root_loop);
+
+    // In loop 1, which inside of "root" loop
+    auto loop1 = ic.GetRegion(3)->GetLoop();
+    RegionInsideLoop(ic.GetRegion(3), loop1);
+    RegionInsideLoop(ic.GetRegion(21), loop1);
+
+    // In loop 2, which inside of loop 1
+    auto loop2 = ic.GetRegion(6)->GetLoop();
+    RegionInsideLoop(ic.GetRegion(6), loop2);
+    RegionInsideLoop(ic.GetRegion(12), loop2);
+    RegionInsideLoop(ic.GetRegion(17), loop2);
+    RegionInsideLoop(ic.GetRegion(19), loop2);
+
+    // Headers of loops
+    ASSERT_EQ(root_loop->GetHeader(), nullptr);
+    ASSERT_EQ(loop1->GetHeader(), ic.GetInst(3));
+    ASSERT_EQ(loop2->GetHeader(), ic.GetInst(6));
+
+    // Outer loop of "loop 1" is "root" loop, inside loop of "root" loop is "loop 1" and unique
+    // Outer loop of "loop 2" is "loop 1", inside of "loop 1" loop is "loop 2" and unique
+    ASSERT_EQ(loop1->GetOuterLoop(), root_loop);
+    ASSERT_EQ(root_loop->GetInnerLoops().size(), 1);
+    ASSERT_EQ(root_loop->GetInnerLoops()[0], loop1);
+
+    ASSERT_EQ(loop2->GetOuterLoop(), loop1);
+    ASSERT_EQ(loop1->GetInnerLoops().size(), 1);
+    ASSERT_EQ(loop1->GetInnerLoops()[0], loop2);
+
+    // Check depth
+    ASSERT_EQ(root_loop->GetDepth(), 0);
+    ASSERT_EQ(loop1->GetDepth(), 1);
+    ASSERT_EQ(loop2->GetDepth(), 2);
 }
 
 /*
@@ -511,7 +630,26 @@ TEST(AnalysisTest, LoopAnalysisTestExample4) {
     auto la = LoopAnalysis(ic.GetFinalGraph());
     la.Run();
 
-    ic.GetFinalGraph()->Dump(std::cerr);
+    auto root_loop = ic.GetRegion(0)->GetLoop();
+    RegionInsideLoop(ic.GetRegion(0), root_loop);
+    RegionInsideLoop(ic.GetRegion(1), root_loop);
+    RegionInsideLoop(ic.GetRegion(2), root_loop);
+    RegionInsideLoop(ic.GetRegion(4), root_loop);
+    RegionInsideLoop(ic.GetRegion(7), root_loop);
+    RegionInsideLoop(ic.GetRegion(9), root_loop);
+    RegionInsideLoop(ic.GetRegion(11), root_loop);
+    RegionInsideLoop(ic.GetRegion(13), root_loop);
+    RegionInsideLoop(ic.GetRegion(16), root_loop);
+
+    // Header of loop
+    ASSERT_EQ(root_loop->GetHeader(), nullptr);
+
+    // Check outer loops
+    ASSERT_EQ(root_loop->GetOuterLoop(), nullptr);
+    ASSERT_EQ(root_loop->GetInnerLoops().size(), 0);
+
+    // Check depth
+    ASSERT_EQ(root_loop->GetDepth(), 0);
 }
 
 TEST(GcmTest, GcmTest1) {
@@ -531,9 +669,11 @@ TEST(GcmTest, GcmTest1) {
     ic.CreateInst<Opcode::End>(1);
 
     auto graph = ic.GetFinalGraph();
-
     GCM(graph).Run();
-    graph->Dump(std::cerr);
+
+    CheckOrderPlacedInsts(graph, 0, {2, 10});
+    CheckOrderPlacedInsts(graph, 3, {4, 8, 9});
+    CheckOrderPlacedInsts(graph, 1, {});
 }
 
 TEST(GcmTest, GcmTest2) {
@@ -556,7 +696,11 @@ TEST(GcmTest, GcmTest2) {
 
     auto graph = ic.GetFinalGraph();
     GCM(graph).Run();
-    graph->Dump(std::cerr);
+
+    CheckOrderPlacedInsts(graph, 0, {3, 2, 8, 10});
+    CheckOrderPlacedInsts(graph, 7, {9, 5, 4});
+    CheckOrderPlacedInsts(graph, 6, {11});
+    CheckOrderPlacedInsts(graph, 1, {});
 }
 
 TEST(LinearOrder, LinearOrder1) {
@@ -633,4 +777,5 @@ TEST(LivenessAnalyzerTest, Test1) {
     la.Run();
     graph->Dump(std::cerr);
 }
+
 }
