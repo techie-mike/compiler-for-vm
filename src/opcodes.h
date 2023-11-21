@@ -7,22 +7,29 @@ namespace compiler {
 
 //===================================================================
 
-#define OPCODE_LIST(ACTION)                               \
+#define INST_OPCODE_LIST(ACTION)                          \
     ACTION( Add         , BinaryOperation               ) \
     ACTION( Sub         , BinaryOperation               ) \
     ACTION( Mul         , BinaryOperation               ) \
     ACTION( Div         , BinaryOperation               ) \
     ACTION( Constant    , ConstantInst                  ) \
-    ACTION( Start       , StartInst                     ) \
-    ACTION( End         , EndInst                       ) \
     ACTION( If          , IfInst                        ) \
     ACTION( Jump        , JumpInst                      ) \
-    ACTION( Region      , RegionInst                    ) \
     ACTION( Compare     , CompareInst                   ) \
     ACTION( Phi         , PhiInst                       ) \
     ACTION( Return      , ReturnInst                    ) \
     ACTION( Parameter   , ParameterInst                 ) \
     ACTION( Call        , CallInst                      )
+
+#define REGIONS_OPCODE_LIST(ACTION)                       \
+    ACTION( Region      , RegionInst                    ) \
+    ACTION( Start       , StartInst                     ) \
+    ACTION( End         , EndInst                       )
+
+
+#define ALL_OPCODE_LIST(ACTION) \
+    INST_OPCODE_LIST(ACTION)    \
+    REGIONS_OPCODE_LIST(ACTION) \
 
 enum class Opcode {
     NONE = 0,
@@ -30,7 +37,7 @@ enum class Opcode {
 #define CREATE_OPCODE(OPCODE, ...) \
     OPCODE,
 
-    OPCODE_LIST(CREATE_OPCODE)
+    ALL_OPCODE_LIST(CREATE_OPCODE)
 
 #undef CREATE_OPCODE
 
@@ -43,7 +50,7 @@ constexpr std::array<const char *const, static_cast<size_t>(Opcode::NUM_OPCODES)
 #define CREATE_NAMES(OPCODE, ...) \
     #OPCODE,
 
-    OPCODE_LIST(CREATE_NAMES)
+    ALL_OPCODE_LIST(CREATE_NAMES)
 
 #undef CREATE_NAMES
 };

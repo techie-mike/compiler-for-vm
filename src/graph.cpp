@@ -8,6 +8,12 @@ namespace compiler {
 void Graph::Dump(std::ostream &out)
 {
     out << "Method: " << name_method_ << std::endl;
+
+    if (insts_placed_) {
+        DumpPlacedInsts(out);
+        return;
+    }
+
     out << "Instructions:" << std::endl;
     for (auto inst : all_inst_) {
         if (inst == nullptr) {
@@ -30,7 +36,7 @@ std::string Graph::GetMethodName() const
 Inst *Graph::CreateClearInstByOpcode(Opcode opc) {
     switch(opc) {
 
-#define CREATER_BY_OPCODE(OPCODE, BASE, ...)                                                    \
+#define CREATER_BY_OPCODE(OPCODE, BASE)                                                         \
         case Opcode::OPCODE: {                                                                  \
             auto *inst = new BASE();                                                            \
             ASSERT(inst->GetOpcode() == Opcode::OPCODE || inst->GetOpcode() == Opcode::NONE);   \
@@ -38,9 +44,23 @@ Inst *Graph::CreateClearInstByOpcode(Opcode opc) {
             return inst;                                                                        \
         }                                                                                       \
 
-OPCODE_LIST(CREATER_BY_OPCODE)
+INST_OPCODE_LIST(CREATER_BY_OPCODE)
 
 #undef CREATER_BY_OPCODE
+
+#define CREATER_REGION_BY_OPCODE(OPCODE, BASE)                                                  \
+        case Opcode::OPCODE: {                                                                  \
+            auto *inst = new BASE();                                                            \
+            ASSERT(inst->GetOpcode() == Opcode::OPCODE || inst->GetOpcode() == Opcode::NONE);   \
+            inst->SetOpcode(Opcode::OPCODE);                                                    \
+            all_regions_.push_back(inst);                                                       \
+            return inst;                                                                        \
+        }                                                                                       \
+
+REGIONS_OPCODE_LIST(CREATER_REGION_BY_OPCODE)
+
+#undef CREATER_REGION_BY_OPCODE
+
         default: {
             std::cerr << "Incorrect opcode!\n";
             return nullptr;
@@ -79,6 +99,27 @@ void Graph::DumpDomTree(std::ostream &out) {
         out << "\n";
     }
 }
+
+void Graph::DumpPlacedInsts(std::ostream &out) {
+    bool first = true;
+    out << "Instructions is PLACED:" << std::endl;
+    for (auto region : all_regions_) {
+        if (first) {
+            out << "----------------------------\n";
+        }
+        region->Dump(out);
+        for (Inst *inst = region->GetFirst(); inst != nullptr; inst = inst->GetNext()) {
+            inst->Dump(out);
+        }
+        if (region->GetOpcode() != Opcode::End) {
+            ASSERT(region->GetExitFromRegion());
+            region->GetExitFromRegion()->Dump(out);
+        }
+        out << "----------------------------\n";
+        first = false;
+    }
+}
+
 
 
 }

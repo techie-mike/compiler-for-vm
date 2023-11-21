@@ -40,6 +40,8 @@ std::string OpcodeToString(Opcode opc);
 std::string CcToString(ConditionCode cc);
 std::string TypeToString(Type type);
 
+class RegionInst;
+
 class Inst
 {
 public:
@@ -137,15 +139,48 @@ public:
         return GetOpcode() == Opcode::Start || GetOpcode() == Opcode::Region || GetOpcode() == Opcode::End;
     }
 
+    void SetPrev(Inst *inst) {
+        prev_ = inst;
+    }
+
+    Inst *GetPrev() {
+        return prev_;
+    }
+
+    void SetNext(Inst *inst) {
+        next_ = inst;
+    }
+
+    Inst *GetNext() {
+        return next_;
+    }
+
+    RegionInst *CastToRegion();
+
+    bool IsPlaced() {
+        return inst_placed_;
+    }
+
+    void SetPlaced() {
+        inst_placed_ = true;
+    }
+
 private:
     auto StartIteratorDataUsers() {
         return HasControlProp() ? ++GetRawUsers().begin() : GetRawUsers().begin();
     }
 
 private:
+    bool inst_placed_ = false;
     id_t id_;
     Opcode opc_;
     Type type_;
+
+protected:
+    Inst *prev_ = nullptr;
+    Inst *next_ = nullptr;
+
+private:
     std::list<Inst *> users_;
 };
 
@@ -337,7 +372,6 @@ public:
     RegionInst():
         Base(Opcode::Region) {}
 
-    // TODO: Fix Fouble free
     virtual ~RegionInst() override;
 
     Inst *GetRegionInput(uint32_t index) {
@@ -384,11 +418,38 @@ public:
     }
 
     bool IsLoopHeader();
+    void PushBackInst(Inst *inst);
+
+    Inst *GetFirst() {
+        return first_;
+    }
+
+    Inst *GetLast() {
+        return last_;
+    }
+
+    Inst *GetExitFromRegion() {
+        return exit_region_;
+    }
+
+    void SetExitRegion(Inst *inst) {
+        ASSERT(inst->GetOpcode() == Opcode::If || inst->GetOpcode() == Opcode::Jump);
+        exit_region_ = inst;
+    }
+
+private:
+    void AddFirstInst(Inst *inst);
 
 private:
     Loop *loop_ {nullptr};
 
     Inst *dominator_ = nullptr;
+    // List off insts when they is placed after GCM
+    // It allow to reuse already created variable
+    Inst *&first_ = next_;
+    Inst *&last_ = prev_;
+    // --------------------------------------------
+    Inst *exit_region_ = nullptr;
     std::vector<Inst *> dominated_;
 };
 

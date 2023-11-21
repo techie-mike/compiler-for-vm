@@ -36,9 +36,27 @@ public:
         return inst;                                                                        \
     }
 
-    OPCODE_LIST(CREATE_CREATORS)
+    INST_OPCODE_LIST(CREATE_CREATORS)
 
 #undef CREATE_CREATORS
+
+// TODO: fix copying of define
+#define CREATE_CREATORS_REGIONS(OPCODE, BASE)                                               \
+    template <typename... Args>                                                             \
+    auto *Create##OPCODE##Inst(Args&&... args) {                                            \
+        auto inst = new BASE(std::forward<Args>(args)...);                                  \
+        /* TODO - Bad API, perhaps there is a better way */                                 \
+        ASSERT(inst->GetOpcode() == Opcode::OPCODE || inst->GetOpcode() == Opcode::NONE);   \
+        inst->SetOpcode(Opcode::OPCODE);                                                    \
+        inst->SetId(all_inst_.size());                                                      \
+        all_inst_.push_back(inst);                                                          \
+        all_regions_.push_back(inst);                                                       \
+        return inst;                                                                        \
+    }
+
+    REGIONS_OPCODE_LIST(CREATE_CREATORS_REGIONS)
+
+#undef CREATE_CREATORS_REGIONS
 
     Inst *CreateClearInstByOpcode(Opcode opc);
 
@@ -97,13 +115,28 @@ public:
         root_loop_ = loop;
     }
 
-private:
-    uint32_t num_loops_ = 0;
-    std::vector<Inst *> all_inst_;
-    std::string name_method_;
-    bool unit_test_mode_;
+    void DumpPlacedInsts(std::ostream &out);
 
+    RegionInst *GetStartRegion() {
+        return GetInstByIndex(0)->CastToRegion();
+    }
+
+    void SetPlacedInsts() {
+        insts_placed_ = true;
+    }
+
+    bool GetPlacedInsts() {
+        return insts_placed_;
+    }
+
+private:
+    bool unit_test_mode_;
+    bool insts_placed_ = false;
+    uint32_t num_loops_ = 0;
     Loop *root_loop_ = nullptr;
+    std::string name_method_;
+    std::vector<Inst *> all_inst_;
+    std::vector<RegionInst *> all_regions_;
 };
 
 }
