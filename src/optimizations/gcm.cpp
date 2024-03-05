@@ -57,8 +57,8 @@ void GCM::PlacingExitFromRegion(Inst *inst, RegionInst *region) {
 
     if (opc == Opcode::If) {
         // TODO: Find more good place for this fill
-        region->PushBackInst(inst);
         PlacingDataInst(inst->GetDataInput(0), region);
+        region->PushBackInst(inst);
         return;
     }
 }

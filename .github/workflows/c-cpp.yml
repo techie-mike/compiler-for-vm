@@ -10,6 +10,9 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
+    env:
+      CC: gcc-9
+      CXX: g++-9
 
     steps:
     - uses: actions/checkout@v3
@@ -37,3 +40,4 @@ jobs:
         cd build
         valgrind tests/analysis_tests -s
         valgrind tests/graph_tests -s
+

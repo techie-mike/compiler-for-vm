@@ -4,6 +4,8 @@
 
 namespace compiler {
 
+class LiveInterval;
+
 class Graph
 {
 public:
@@ -130,13 +132,15 @@ public:
     }
 
 private:
-    bool unit_test_mode_;
+    bool unit_test_mode_ = false;
     bool insts_placed_ = false;
     uint32_t num_loops_ = 0;
     Loop *root_loop_ = nullptr;
     std::string name_method_;
     std::vector<Inst *> all_inst_;
     std::vector<RegionInst *> all_regions_;
+    LiveInterval *live_intervals_ = nullptr;
+    LinearNumber num_linear_inst_ = 0;
 };
 
 }

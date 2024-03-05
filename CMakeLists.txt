@@ -5,7 +5,7 @@ project(Compiler)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_FLAGS "-pedantic -Wall -Wextra -Werror -Wshadow")
+set(CMAKE_CXX_FLAGS "-pedantic -Wall -Wextra -Werror -Wshadow -g")
 
 set(ROOT_COMPILER ${CMAKE_SOURCE_DIR})
 set(COMPILER_SOURCES
@@ -19,6 +19,7 @@ set(COMPILER_SOURCES
     ${CMAKE_SOURCE_DIR}/src/optimizations/gcm.cpp
     ${CMAKE_SOURCE_DIR}/src/optimizations/analysis/linear_order.cpp
     ${CMAKE_SOURCE_DIR}/src/optimizations/analysis/liveness_analyzer.cpp
+    ${CMAKE_SOURCE_DIR}/src/optimizations/linear_scan.cpp
 )
 
 add_subdirectory(tests)
