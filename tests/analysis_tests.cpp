@@ -11,6 +11,7 @@
 #include "optimizations/gcm.h"
 #include "optimizations/analysis/linear_order.h"
 #include "optimizations/analysis/liveness_analyzer.h"
+#include "optimizations/linear_scan.h"
 
 
 namespace compiler {
@@ -36,6 +37,21 @@ void CheckOrderPlacedInsts(Graph *graph, id_t index_region, std::vector<id_t> or
         }
     }
     ASSERT_EQ(num, order.size());
+}
+
+void CheckLocationData(std::vector<RegMap> &regs_map, LinearNumber linear_number, LocationData location) {
+    auto find_map = std::find_if(regs_map.begin(), regs_map.end(), [linear_number](RegMap& map) { return map.interval.GetLinearNumber() == linear_number; });
+    ASSERT(find_map != regs_map.end());
+    ASSERT_EQ((*find_map).location.is_reg, location.is_reg);
+    ASSERT_EQ((*find_map).location.index, location.index);
+}
+
+#define CHECK_LIVE_INTERVAL_INST(/* Graph* */ graph, /* std::vector<LiveInterval> */ all_live_intervals, /* id_t */ idx_inst, /* LiveInterval */ true_live_interval)      \
+{                                                                                                                                                                         \
+    auto inst = (graph)->GetInstByIndex((idx_inst));                                                                                                                      \
+    auto li = (all_live_intervals)[inst->GetLinearNumber()];                                                                                                              \
+    ASSERT_EQ(li.GetBegin(), (true_live_interval).GetBegin());                                                                                                            \
+    ASSERT_EQ(li.GetEnd(), (true_live_interval).GetEnd());                                                                                                                \
 }
 
 /*
@@ -698,11 +714,102 @@ TEST(GcmTest, GcmTest2) {
     GCM(graph).Run();
 
     CheckOrderPlacedInsts(graph, 0, {3, 2, 8, 10});
-    CheckOrderPlacedInsts(graph, 7, {9, 5, 4});
+    CheckOrderPlacedInsts(graph, 7, {9, 4, 5});
     CheckOrderPlacedInsts(graph, 6, {11});
     CheckOrderPlacedInsts(graph, 1, {});
 }
 
+TEST(GcmTest, GcmTest3) {
+    auto ic = IrConstructor();
+    ic.CreateInst<Opcode::Start>(0);
+    ic.CreateInst<Opcode::Parameter>(2);
+    ic.CreateInst<Opcode::Constant>(3).Imm(0);
+    ic.CreateInst<Opcode::Compare>(4).DataInputs(2, 3).CC(ConditionCode::EQ);
+    ic.CreateInst<Opcode::If>(5).CtrlInput(0).DataInputs(4).Branches(9, 6);
+
+    ic.CreateInst<Opcode::Region>(6);
+    ic.CreateInst<Opcode::Constant>(7).Imm(1);
+    ic.CreateInst<Opcode::Jump>(8).CtrlInput(6).JmpTo(9);
+
+
+    ic.CreateInst<Opcode::Region>(9);
+    ic.CreateInst<Opcode::Phi>(10).CtrlInput(9).DataInputs(3, 7);
+    ic.CreateInst<Opcode::Return>(11).CtrlInput(10).DataInputs(10);
+    ic.CreateInst<Opcode::Jump>(12).CtrlInput(11).JmpTo(1);
+
+    ic.CreateInst<Opcode::End>(1);
+
+    auto graph = ic.GetFinalGraph();
+    GCM(graph).Run();
+
+    CheckOrderPlacedInsts(graph, 0, {7, 3, 2, 4, 5});
+    CheckOrderPlacedInsts(graph, 6, {8});
+    CheckOrderPlacedInsts(graph, 9, {10, 11, 12});
+    CheckOrderPlacedInsts(graph, 1, {});
+}
+
+/*  True linear order of graph in test below
+
+       +--------------------------------------------+
+       |  0.  Start       -> v2                     |
+       |  5.i64 Constant   0x0 -> v8, v10, v15, v20 |
+       |  2.    Jump       v0 -> v3                 |
+       +-----------+--------------------------------+
+                   |
+                   v
+       +----------------------------------+
+       |  3.    Region     v2, v22 -> v4  |<-----------------+
+       |  4.    Jump       v3 -> v6       |                  |
+       +-----------+----------------------+                  |
+                   |                                         |
+                   v                                         |
+       +------------------------------------------+          |
+     T |  6.    Region     v4, v20 -> v8          |<----+    |
++------+  8.    If         v6, v5 -> T:v9, F:v12  |     |    |
+|      +-----------+------------------------------+     |    |
+|                  |F                                   |    |
+|                  v                                    |    |
+|      +------------------------------+                 |    |
+|      | 12.    Region     v8 -> v13  |                 |    |
+|      | 13.    Jump       v12 -> v17 |                 |    |
+|      +-----------+------------------+                 |    |
+|                  |                                    |    |
+|                  v                                    |    |
+|      +------------------------------------------+     |    |
++----->|  9.    Region     v8 -> v10              |     |    |
+     T | 10.    If         v9, v5 -> T:v14, F:v17 |     |    |
++------+-----------+------------------------------+     |    |
+|                  |F                                   |    |
+|                  v                                    |    |
+|      +-----------------------------------+            |    |
+|      | 17.    Region     v13, v10 -> v18 |            |    |
+|      | 18.    Jump       v17 -> v19      |            |    |
+|      +-----------+-----------------------+            |    |
+|                  |                                    |    |
+|                  v                                    |    |
+|      +------------------------------------------+     |    |
+|      | 19.    Region     v18 -> v20             |F    |    |
+|      | 20.    If         v19, v5 -> T:v21, F:v6 +-----+    |
+|      +-----------+------------------------------+          |
+|                  |T                                        |
+|                  v                                         |
+|      +------------------------------+                      |
+|      | 21.    Region     v20 -> v22 |                      |
+|      | 22.    Jump       v21 -> v3  +----------------------+
+|      +-----------+------------------+
+|                  |
+|                  v
+|      +----------------------------------+
++----->| 14.    Region     v10 -> v15     |
+       | 15.    Return     v14, v5 -> v16 |
+       | 16.    Jump       v15 -> v1      |
+       +-----------+----------------------+
+                   |
+                   v
+       +-----------------------+
+       | 1.    End        v16  |
+       +-----------------------+
+ */
 TEST(LinearOrder, LinearOrder1) {
     auto ic = IrConstructor();
     ic.CreateInst<Opcode::Constant>(5).Imm(0);
@@ -741,7 +848,6 @@ TEST(LinearOrder, LinearOrder1) {
     auto graph = ic.GetFinalGraph();
 
     GCM(graph).Run();
-    graph->Dump(std::cerr);
 
     auto lo = LinearOrder(graph);
     lo.Run();
@@ -753,7 +859,28 @@ TEST(LinearOrder, LinearOrder1) {
         ASSERT_EQ(lo.GetVector()[i]->GetId(), true_linear_order[i]);
     }
 }
-
+/*
+    ----------------------------
+    BB begin life:0
+    0.    Start      [Loop:root]  -> v10
+    2.i64 Constant   0x7b -> v4, v5, v6, v7
+        life: 2 lin: 0 Alive: [2, 6)        <<<<================
+    10.    Jump       v0 -> v3
+    Block live range: [0, 4)
+    ----------------------------
+    BB begin life:4
+    3.    Region     [Loop:root] v10 -> v8
+    4.    Add        v2, v2 -> v8
+        life: 6 lin: 1 Alive: [6, 8)        <<<<================
+    8.    Return     v3, v4 -> v9
+        life: 8 lin: 2 Alive: [0, 0)        <<<<================
+    9.    Jump       v8 -> v1
+    Block live range: [4, 10)
+    ----------------------------
+    BB begin life:10
+    1.    End        [Loop:root] v9
+    ----------------------------
+ */
 TEST(LivenessAnalyzerTest, Test1) {
     auto ic = IrConstructor();
     ic.CreateInst<Opcode::Start>(0);
@@ -775,7 +902,224 @@ TEST(LivenessAnalyzerTest, Test1) {
     GCM(graph).Run();
     auto la = LivenessAnalyzer(graph);
     la.Run();
-    graph->Dump(std::cerr);
+
+    CHECK_LIVE_INTERVAL_INST(graph, la.GetLiveIntervals(), 2, LiveInterval(2, 6));
+    CHECK_LIVE_INTERVAL_INST(graph, la.GetLiveIntervals(), 4, LiveInterval(6, 8));
+    CHECK_LIVE_INTERVAL_INST(graph, la.GetLiveIntervals(), 8, LiveInterval(0, 0));
+}
+
+
+/*
+    ----------------------------
+    BB begin life:0
+    0.    Start      [Loop:root]  -> v2
+    5.i64 Constant   0x0 -> v8, v10, v15, v20
+        life: 2 lin: 0  Alive: [2, 26)          <<<<================
+    2.    Jump       v0 -> v3
+    Block live range: [0, 4)
+    ----------------------------
+    BB begin life:4
+    3.    Region     [Loop:1, Depth:1, Header] v2, v22 -> v4
+    4.    Jump       v3 -> v6
+    Block live range: [4, 6)
+    ----------------------------
+    BB begin life:6
+    6.    Region     [Loop:2, Depth:2, Header] v4, v20 -> v8
+    8.    If         v6, v5 -> T:v9, F:v12
+        life: 8 lin: 1 Alive: [0, 0)            <<<<================
+    Block live range: [6, 10)
+    ----------------------------
+    BB begin life:10
+    12.    Region     [Loop:2, Depth:2] v8 -> v13
+    13.    Jump       v12 -> v17
+    Block live range: [10, 12)
+    ----------------------------
+    BB begin life:12
+    9.    Region     [Loop:2, Depth:2] v8 -> v10
+    10.    If         v9, v5 -> T:v14, F:v17
+        life: 14 lin: 2 Alive: [0, 0)           <<<<================
+    Block live range: [12, 16)
+    ----------------------------
+    BB begin life:16
+    17.    Region     [Loop:2, Depth:2] v13, v10 -> v18
+    18.    Jump       v17 -> v19
+    Block live range: [16, 18)
+    ----------------------------
+    BB begin life:18
+    19.    Region     [Loop:2, Depth:2, Backedge] v18 -> v20
+    20.    If         v19, v5 -> T:v21, F:v6
+        life: 20 lin: 3 Alive: [0, 0)           <<<<================
+    Block live range: [18, 22)
+    ----------------------------
+    BB begin life:22
+    21.    Region     [Loop:1, Depth:1, Backedge] v20 -> v22
+    22.    Jump       v21 -> v3
+    Block live range: [22, 24)
+    ----------------------------
+    BB begin life:24
+    14.    Region     [Loop:root] v10 -> v15
+    15.    Return     v14, v5 -> v16
+        life: 26 lin: 4  Alive: [0, 0)          <<<<================
+    16.    Jump       v15 -> v1
+    Block live range: [24, 28)
+    ----------------------------
+    BB begin life:28
+    1.    End        [Loop:root] v16
+    ----------------------------
+ */
+TEST(LivenessAnalyzerTest, Test2) {
+    auto ic = IrConstructor();
+    ic.CreateInst<Opcode::Constant>(5).Imm(0);
+
+    ic.CreateInst<Opcode::Start>(0);
+    ic.CreateInst<Opcode::Jump>(2).CtrlInput(0).JmpTo(3);
+
+    ic.CreateInst<Opcode::Region>(3);
+    ic.CreateInst<Opcode::Jump>(4).CtrlInput(3).JmpTo(6);
+
+    ic.CreateInst<Opcode::Region>(6);
+    ic.CreateInst<Opcode::If>(8).CtrlInput(6).DataInputs(5).Branches(9, 12);
+
+    ic.CreateInst<Opcode::Region>(9);
+    ic.CreateInst<Opcode::If>(10).CtrlInput(9).DataInputs(5).Branches(14, 17);
+
+    ic.CreateInst<Opcode::Region>(14);
+    ic.CreateInst<Opcode::Return>(15).DataInputs(5).CtrlInput(14);
+    ic.CreateInst<Opcode::Jump>(16).CtrlInput(15).JmpTo(1);
+
+    ic.CreateInst<Opcode::Region>(12);
+    ic.CreateInst<Opcode::Jump>(13).CtrlInput(12).JmpTo(17);
+
+    ic.CreateInst<Opcode::Region>(17);
+    ic.CreateInst<Opcode::Jump>(18).CtrlInput(17).JmpTo(19);
+
+
+    ic.CreateInst<Opcode::Region>(19);
+    ic.CreateInst<Opcode::If>(20).CtrlInput(19).DataInputs(5).Branches(21, 6);
+
+    ic.CreateInst<Opcode::Region>(21);
+    ic.CreateInst<Opcode::Jump>(22).CtrlInput(21).JmpTo(3);
+
+    ic.CreateInst<Opcode::End>(1);
+
+    auto graph = ic.GetFinalGraph();
+
+    GCM(graph).Run();
+    auto la = LivenessAnalyzer(graph);
+    la.Run();
+
+    CHECK_LIVE_INTERVAL_INST(graph, la.GetLiveIntervals(), 5, LiveInterval(2, 26));
+    CHECK_LIVE_INTERVAL_INST(graph, la.GetLiveIntervals(), 8, LiveInterval(0, 0));
+    CHECK_LIVE_INTERVAL_INST(graph, la.GetLiveIntervals(), 10, LiveInterval(0, 0));
+    CHECK_LIVE_INTERVAL_INST(graph, la.GetLiveIntervals(), 20, LiveInterval(0, 0));
+    CHECK_LIVE_INTERVAL_INST(graph, la.GetLiveIntervals(), 15, LiveInterval(0, 0));
+}
+
+/*
+    ----------------------------
+    BB begin life:0
+    0.    Start      [Loop:root]  -> v5
+    7.i64 Constant   0x1 -> v10
+        life: 2 lin: 0 Alive: [2, 14)           <<<<================
+    3.i64 Constant   0x0 -> v4, v10
+        life: 4 lin: 1 Alive: [4, 14)           <<<<================
+    2.    Parameter   -> v4
+        life: 6 lin: 2 Alive: [6, 8)
+    4.b   Compare    EQ v2, v3 -> v5
+        life: 8 lin: 3 Alive: [8, 10)           <<<<================
+    5.    If         v0, v4 -> T:v9, F:v6
+        life: 10 lin: 4 Alive: [0, 0)           <<<<================
+    Block live range: [0, 12)
+    ----------------------------
+    BB begin life:12
+    6.    Region     [Loop:root] v5 -> v8
+    8.    Jump       v6 -> v9
+    Block live range: [12, 14)
+    ----------------------------
+    BB begin life:14
+    9.    Region     [Loop:root] v8, v5 -> v10
+    10.    Phi        v9, v3(R8), v7(R5) -> v11, v11
+        life: 14 lin: 5 Alive: [14, 16)         <<<<================
+    11.    Return     v10, v10 -> v12
+        life: 16 lin: 6 Alive: [0, 0)           <<<<================
+    12.    Jump       v11 -> v1
+    Block live range: [14, 18)
+    ----------------------------
+    BB begin life:18
+    1.    End        [Loop:root] v12
+    ----------------------------
+ */
+TEST(LivenessAnalyzerTest, TestPhi) {
+    auto ic = IrConstructor();
+    ic.CreateInst<Opcode::Start>(0);
+    ic.CreateInst<Opcode::Parameter>(2);
+    ic.CreateInst<Opcode::Constant>(3).Imm(0);
+    ic.CreateInst<Opcode::Compare>(4).DataInputs(2, 3).CC(ConditionCode::EQ);
+    ic.CreateInst<Opcode::If>(5).CtrlInput(0).DataInputs(4).Branches(9, 6);
+
+    ic.CreateInst<Opcode::Region>(6);
+    ic.CreateInst<Opcode::Constant>(7).Imm(1);
+    ic.CreateInst<Opcode::Jump>(8).CtrlInput(6).JmpTo(9);
+
+
+    ic.CreateInst<Opcode::Region>(9);
+    ic.CreateInst<Opcode::Phi>(10).CtrlInput(9).DataInputs(3, 7);
+    ic.CreateInst<Opcode::Return>(11).CtrlInput(10).DataInputs(10);
+    ic.CreateInst<Opcode::Jump>(12).CtrlInput(11).JmpTo(1);
+
+    ic.CreateInst<Opcode::End>(1);
+
+    auto graph = ic.GetFinalGraph();
+
+    GCM(graph).Run();
+    auto la = LivenessAnalyzer(graph);
+    la.Run();
+
+    CHECK_LIVE_INTERVAL_INST(graph, la.GetLiveIntervals(), 7, LiveInterval(2, 14));
+    CHECK_LIVE_INTERVAL_INST(graph, la.GetLiveIntervals(), 3, LiveInterval(4, 14));
+    CHECK_LIVE_INTERVAL_INST(graph, la.GetLiveIntervals(), 2, LiveInterval(6, 8));
+    CHECK_LIVE_INTERVAL_INST(graph, la.GetLiveIntervals(), 5, LiveInterval(0, 0));
+    CHECK_LIVE_INTERVAL_INST(graph, la.GetLiveIntervals(), 10, LiveInterval(14, 16));
+    CHECK_LIVE_INTERVAL_INST(graph, la.GetLiveIntervals(), 11, LiveInterval(0, 0));
+}
+
+// Graph the same as TestPhi
+TEST(LinearScanTest, Test1) {
+    auto ic = IrConstructor();
+    ic.CreateInst<Opcode::Start>(0);
+    ic.CreateInst<Opcode::Parameter>(2);
+    ic.CreateInst<Opcode::Constant>(3).Imm(0);
+    ic.CreateInst<Opcode::Compare>(4).DataInputs(2, 3).CC(ConditionCode::EQ);
+    ic.CreateInst<Opcode::If>(5).CtrlInput(0).DataInputs(4).Branches(9, 6);
+
+    ic.CreateInst<Opcode::Region>(6);
+    ic.CreateInst<Opcode::Constant>(7).Imm(1);
+    ic.CreateInst<Opcode::Jump>(8).CtrlInput(6).JmpTo(9);
+
+
+    ic.CreateInst<Opcode::Region>(9);
+    ic.CreateInst<Opcode::Phi>(10).CtrlInput(9).DataInputs(3, 7);
+    ic.CreateInst<Opcode::Return>(11).CtrlInput(10).DataInputs(10);
+    ic.CreateInst<Opcode::Jump>(12).CtrlInput(11).JmpTo(1);
+
+    ic.CreateInst<Opcode::End>(1);
+
+    auto graph = ic.GetFinalGraph();
+
+    GCM(graph).Run();
+    auto la = LivenessAnalyzer(graph);
+    la.Run();
+
+    auto ls = LinearScanRegAlloc(la.GetLiveIntervals());
+    ls.Run();
+    auto regs_map = ls.GetRegsMap();
+
+    CheckLocationData(regs_map, 0, Register(2, ""));
+    CheckLocationData(regs_map, 1, StackLocation(1, ""));
+    CheckLocationData(regs_map, 2, Register(0, ""));
+    CheckLocationData(regs_map, 4, LocationData(-1, "", false));
+    CheckLocationData(regs_map, 5, StackLocation(2, ""));
+    CheckLocationData(regs_map, 6, LocationData(-1, "", false));
 }
 
 }

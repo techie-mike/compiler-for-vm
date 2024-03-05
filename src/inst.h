@@ -43,6 +43,7 @@ std::string CcToString(ConditionCode cc);
 std::string TypeToString(Type type);
 
 class RegionInst;
+class IfInst;
 
 class Inst
 {
@@ -121,7 +122,7 @@ public:
     virtual void DumpUsers(std::ostream &out);
 
     uint32_t NumDataUsers();
-    std::list<Inst *> &GetRawUsers() {
+    std::list<Inst *> & GetRawUsers() {
         return users_;
     }
 
@@ -137,8 +138,12 @@ public:
         return;
     }
 
-    bool IsRegion() {
+    bool IsRegion() const {
         return GetOpcode() == Opcode::Start || GetOpcode() == Opcode::Region || GetOpcode() == Opcode::End;
+    }
+
+    bool IsPhi() const {
+        return GetOpcode() == Opcode::Phi;
     }
 
     void SetPrev(Inst *inst) {
@@ -158,8 +163,9 @@ public:
     }
 
     RegionInst *CastToRegion();
+    IfInst *CastToIf();
 
-    bool IsPlaced() {
+    bool IsPlaced() const {
         return inst_placed_;
     }
 
@@ -449,6 +455,21 @@ public:
         return last_;
     }
 
+    id_t GetIndexPredecessor(Inst* inst) {
+        id_t index = 0;
+        id_t num_inputs_succ_region = NumDataInputs();
+        for (index = 0; index < num_inputs_succ_region; index++) {
+            if (GetDataInput(index) == inst) {
+                return index;
+            }
+        }
+        UNREACHABLE();
+    }
+
+    LifeNumber GetLifeNumberEndOfRegion() {
+        return GetLast()->GetLifeNumber() + 2;
+    }
+
 private:
     void AddFirstInst(Inst *inst);
 
@@ -501,12 +522,12 @@ public:
         GetRawUsers().push_back(nullptr);
     }
 
-    Inst *GetTrueBranch() {
-        return *(GetRawUsers().begin());
+    RegionInst *GetTrueBranch() {
+        return (*(GetRawUsers().begin()))->CastToRegion();
     }
 
-    Inst *GetFalseBranch() {
-        return *(++GetRawUsers().begin());
+    RegionInst *GetFalseBranch() {
+        return (*(++GetRawUsers().begin()))->CastToRegion();
     }
 
     void SetTrueBranch(Inst *inst) {

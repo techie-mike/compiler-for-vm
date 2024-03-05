@@ -255,4 +255,9 @@ RegionInst *Inst::CastToRegion() {
     return static_cast<RegionInst *>(this);
 }
 
+IfInst *Inst::CastToIf() {
+    ASSERT(GetOpcode() == Opcode::If);
+    return static_cast<IfInst *>(this);
+}
+
 }
