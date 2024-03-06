@@ -44,7 +44,28 @@ add_custom_target(
     COMMAND analysis_tests
 )
 
+add_executable(
+    peepholes_tests
+    peepholes_tests.cpp
+    graph_comparator.cpp
+    ${COMPILER_SOURCES}
+)
+target_include_directories(peepholes_tests PUBLIC "${CMAKE_SOURCE_DIR}/src")
+
+gtest_discover_tests(peepholes_tests)
+
+target_link_libraries(
+    peepholes_tests
+    GTest::gtest_main
+)
+
+add_custom_target(
+    peepholes_tests_gtest
+    COMMAND peepholes_tests
+)
+
+
 add_custom_target(
     tests
-    DEPENDS graph_tests_gtest analysis_tests_gtest
+    DEPENDS graph_tests_gtest analysis_tests_gtest peepholes_tests_gtest
 )

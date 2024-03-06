@@ -44,6 +44,7 @@ std::string TypeToString(Type type);
 
 class RegionInst;
 class IfInst;
+class ConstantInst;
 
 class Inst
 {
@@ -150,6 +151,10 @@ public:
         prev_ = inst;
     }
 
+    bool IsConst() const {
+        return GetOpcode() == Opcode::Constant;
+    }
+
     Inst *GetPrev() {
         return prev_;
     }
@@ -164,6 +169,7 @@ public:
 
     RegionInst *CastToRegion();
     IfInst *CastToIf();
+    ConstantInst *CastToConstant();
 
     bool IsPlaced() const {
         return inst_placed_;
@@ -188,6 +194,8 @@ public:
     LifeNumber GetLifeNumber() {
         return life_number_;
     }
+
+    void ReplaceDataUsers(Inst *from);
 
 private:
     auto StartIteratorDataUsers() {
@@ -367,6 +375,19 @@ public:
     }
 };
 
+class UnaryOperation : public FixedInputs<1>
+{
+public:
+    UnaryOperation():
+        FixedInputs<1>() {}
+
+    UnaryOperation(Opcode opc):
+        FixedInputs<1>(opc) {}
+
+    UnaryOperation(Opcode opc, Type type, Inst *input0):
+        FixedInputs<1>(opc, type, {{input0}}) {}
+};
+
 class BinaryOperation : public FixedInputs<2>
 {
 public:
@@ -375,6 +396,9 @@ public:
 
     BinaryOperation(Opcode opc):
         FixedInputs<2>(opc) {}
+
+    BinaryOperation(Type type, Inst *input0, Inst *input1):
+        FixedInputs<2>(Opcode::NONE, type, {{input0, input1}}) {}
 
     BinaryOperation(Opcode opc, Type type, Inst *input0, Inst *input1):
         FixedInputs<2>(opc, type, {{input0, input1}}) {}
@@ -385,6 +409,10 @@ public:
     ConstantInst():
         Inst(Opcode::Constant, Type::INT64),
         ImmidiateProperty(0) {}
+
+    ConstantInst(ImmType value):
+        Inst(Opcode::Constant, Type::INT64),
+        ImmidiateProperty(value) {}
 
     virtual void DumpInputs(std::ostream &out) override {
         out << std::string("0x") << std::hex << GetImm() << std::dec;

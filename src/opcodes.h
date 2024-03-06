@@ -12,6 +12,10 @@ namespace compiler {
     ACTION( Sub         , BinaryOperation               ) \
     ACTION( Mul         , BinaryOperation               ) \
     ACTION( Div         , BinaryOperation               ) \
+    ACTION( Shl         , BinaryOperation               ) \
+    ACTION( Shr         , BinaryOperation               ) \
+    ACTION( And         , BinaryOperation               ) \
+    ACTION( Or          , BinaryOperation               ) \
     ACTION( Constant    , ConstantInst                  ) \
     ACTION( If          , IfInst                        ) \
     ACTION( Jump        , JumpInst                      ) \

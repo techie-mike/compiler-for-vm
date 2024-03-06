@@ -20,6 +20,8 @@ set(COMPILER_SOURCES
     ${CMAKE_SOURCE_DIR}/src/optimizations/analysis/linear_order.cpp
     ${CMAKE_SOURCE_DIR}/src/optimizations/analysis/liveness_analyzer.cpp
     ${CMAKE_SOURCE_DIR}/src/optimizations/linear_scan.cpp
+    ${CMAKE_SOURCE_DIR}/src/optimizations/peepholes.cpp
+    ${CMAKE_SOURCE_DIR}/src/optimizations/constant_folding.cpp
 )
 
 add_subdirectory(tests)

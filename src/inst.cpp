@@ -260,4 +260,23 @@ IfInst *Inst::CastToIf() {
     return static_cast<IfInst *>(this);
 }
 
+ConstantInst *Inst::CastToConstant() {
+    ASSERT(GetOpcode() == Opcode::Constant);
+    return static_cast<ConstantInst *>(this);
+}
+
+void Inst::ReplaceDataUsers(Inst *from) {
+    ASSERT(!HasControlProp());
+    for (auto it = from->StartIteratorDataUsers(); it != from->GetRawUsers().end(); it++) {
+        auto user = *it;
+        AddDataUser(user);
+        for (id_t i = 0; i < user->NumDataInputs(); i++) {
+            if (user->GetDataInput(i) == from) {
+                user->SetDataInput(i, this);
+            }
+        }
+    }
+    from->GetRawUsers().erase(from->StartIteratorDataUsers(), from->GetRawUsers().end());
+}
+
 }
