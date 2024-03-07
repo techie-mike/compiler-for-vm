@@ -3,33 +3,34 @@ enable_testing()
 include_directories(
     ${ROOT_COMPILER}
 )
+set(ALL_LIBS_FOR_TESTS
+    GTest::gtest_main
+    CompilerLibBase)
 
 add_executable(
     graph_tests
     graph_tests.cpp
     graph_comparator.cpp
-    ${COMPILER_SOURCES}
 )
 
 target_include_directories(graph_tests PUBLIC "${CMAKE_SOURCE_DIR}/src")
 
 target_link_libraries(
     graph_tests
-    GTest::gtest_main
+    ${ALL_LIBS_FOR_TESTS}
 )
 
 add_executable(
     analysis_tests
     analysis_tests.cpp
     graph_comparator.cpp
-    ${COMPILER_SOURCES}
 )
+
 target_include_directories(analysis_tests PUBLIC "${CMAKE_SOURCE_DIR}/src")
 target_link_libraries(
     analysis_tests
-    GTest::gtest_main
+    ${ALL_LIBS_FOR_TESTS}
 )
-
 
 include(GoogleTest)
 gtest_discover_tests(graph_tests)
@@ -48,7 +49,6 @@ add_executable(
     peepholes_tests
     peepholes_tests.cpp
     graph_comparator.cpp
-    ${COMPILER_SOURCES}
 )
 target_include_directories(peepholes_tests PUBLIC "${CMAKE_SOURCE_DIR}/src")
 
@@ -56,7 +56,7 @@ gtest_discover_tests(peepholes_tests)
 
 target_link_libraries(
     peepholes_tests
-    GTest::gtest_main
+    ${ALL_LIBS_FOR_TESTS}
 )
 
 add_custom_target(

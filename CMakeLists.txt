@@ -24,6 +24,9 @@ set(COMPILER_SOURCES
     ${CMAKE_SOURCE_DIR}/src/optimizations/constant_folding.cpp
 )
 
+add_library(CompilerLibBase ${COMPILER_SOURCES})
+target_include_directories(CompilerLibBase PUBLIC "${CMAKE_SOURCE_DIR}/src")
+
 add_subdirectory(tests)
 
 include(FetchContent)
