@@ -120,7 +120,6 @@ private:
     Graph *graph_;
     Marker m_visited_;
     Marker m_trace_;
-    uint32_t num_loops_ = 0;
 };
 
 }
