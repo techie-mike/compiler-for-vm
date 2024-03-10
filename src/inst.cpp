@@ -45,6 +45,7 @@ void Inst::SetDataInput(id_t index, Inst *inst) {
 }
 
 Inst *Inst::GetDataInput(id_t index) {
+    ASSERT(!IsRegion());  // RegionInst has special method GetRegionInput
     if (HasControlProp()) {
         index++;
     }

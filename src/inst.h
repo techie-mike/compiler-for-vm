@@ -95,6 +95,7 @@ public:
     }
 
     uint32_t NumDataInputs() {
+        ASSERT(!IsRegion());  // RegionInst has special method NumRegionInputs
         auto num_all = NumAllInputs();
         ASSERT(num_all > 0);
         return HasControlProp() ? num_all - 1 : num_all;
@@ -432,6 +433,10 @@ public:
         return GetRawInput(index);
     }
 
+    uint32_t NumRegionInputs() {
+        return NumAllInputs();
+    }
+
     void SetRegionInput(uint32_t index, Inst *inst) {
         [[maybe_unused]] auto opc = inst->GetOpcode();
         ASSERT(opc == Opcode::Start || opc == Opcode::Jump || opc == Opcode::If);
@@ -485,9 +490,9 @@ public:
 
     id_t GetIndexPredecessor(Inst* inst) {
         id_t index = 0;
-        id_t num_inputs_succ_region = NumDataInputs();
+        id_t num_inputs_succ_region = NumRegionInputs();
         for (index = 0; index < num_inputs_succ_region; index++) {
-            if (GetDataInput(index) == inst) {
+            if (GetRegionInput(index) == inst) {
                 return index;
             }
         }
@@ -510,7 +515,6 @@ private:
     Inst *&first_ = next_;
     Inst *&last_ = prev_;
     // --------------------------------------------
-    Inst *exit_region_ = nullptr;
     std::vector<Inst *> dominated_;
 };
 

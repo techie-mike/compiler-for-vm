@@ -139,8 +139,6 @@ private:
     std::string name_method_;
     std::vector<Inst *> all_inst_;
     std::vector<RegionInst *> all_regions_;
-    LiveInterval *live_intervals_ = nullptr;
-    LinearNumber num_linear_inst_ = 0;
 };
 
 }

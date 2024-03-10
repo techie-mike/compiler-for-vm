@@ -7,12 +7,12 @@ on:
     branches: [ "master" ]
 
 jobs:
-  build:
+  build_gcc_11:
 
     runs-on: ubuntu-latest
     env:
-      CC: gcc-9
-      CXX: g++-9
+      CC: gcc-11
+      CXX: g++-11
 
     steps:
     - uses: actions/checkout@v3
@@ -41,3 +41,30 @@ jobs:
         valgrind tests/analysis_tests -s
         valgrind tests/graph_tests -s
 
+  build_clang_14:
+
+    runs-on: ubuntu-latest
+    env:
+      CC: clang-14
+      CXX: clang++-14
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: seanmiddleditch/gha-setup-ninja@master
+    - name: setup
+      run: sudo apt-get install ninja-build
+
+    - name: apt install dependency
+      run: |
+        sudo apt-get -y install valgrind
+        sudo apt-get -y install libcunit1 libcunit1-doc libcunit1-dev
+
+    - name: build
+      run: |
+        echo "Building project..."
+        mkdir build && cd build
+        cmake .. -GNinja
+    - name: graph_gtests
+      run: |
+        cd build
+        ninja tests

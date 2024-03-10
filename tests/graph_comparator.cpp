@@ -41,12 +41,9 @@ void GraphComparator::CompareInputs(Inst *left, Inst *right) {
     if (left->NumAllInputs() == 0) {
         return;
     }
-    if (left->HasControlProp()) {
-        ASSERT_EQ(left->GetControlInput()->GetId(), right->GetControlInput()->GetId());
-    }
 
-    for (size_t i = 0; i < left->NumDataInputs(); i++) {
-        ASSERT_EQ(left->GetDataInput(i)->GetId(), right->GetDataInput(i)->GetId());
+    for (size_t i = 0; i < left->NumAllInputs(); i++) {
+        ASSERT_EQ(left->GetRawInput(i)->GetId(), right->GetRawInput(i)->GetId());
     }
 }
 
