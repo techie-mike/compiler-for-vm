@@ -97,6 +97,44 @@ TEST(PeepholesTest, ShrAfterShr) {
     GraphComparator(true_graph, graph).Compare();
 }
 
+TEST(PeepholesTest, SubSub) {
+    // Before
+    auto ic = IrConstructor();
+    ic.CreateInst<Opcode::Start>(0);
+    ic.CreateInst<Opcode::End>(1);
+    ic.CreateInst<Opcode::Parameter>(2);
+    ic.CreateInst<Opcode::Constant>(3).Imm(10);
+    ic.CreateInst<Opcode::Constant>(4).Imm(15);
+    ic.CreateInst<Opcode::Sub>(5).DataInputs(2, 3);
+    ic.CreateInst<Opcode::Sub>(6).DataInputs(5, 4);
+    ic.CreateInst<Opcode::Return>(7).CtrlInput(0).DataInputs(6);
+    ic.CreateInst<Opcode::Jump>(8).CtrlInput(7).JmpTo(1);
+
+    auto graph = ic.GetFinalGraph();
+    auto ph = Peepholes(graph);
+    ph.Run();
+
+    // After
+    auto ic_true = IrConstructor();
+    ic_true.CreateInst<Opcode::Start>(0);
+    ic_true.CreateInst<Opcode::Parameter>(2);
+    ic_true.CreateInst<Opcode::Constant>(3).Imm(10);
+    ic_true.CreateInst<Opcode::Constant>(4).Imm(15);
+    ic_true.CreateInst<Opcode::Constant>(9).Imm(25);
+
+    ic_true.CreateInst<Opcode::Sub>(5).DataInputs(2, 3);
+    ic_true.CreateInst<Opcode::Sub>(6).DataInputs(2, 9);
+    ic_true.CreateInst<Opcode::Return>(7).CtrlInput(0).DataInputs(6);
+    ic_true.CreateInst<Opcode::Jump>(8).CtrlInput(7).JmpTo(1);
+
+    ic_true.CreateInst<Opcode::End>(1);
+
+    auto true_graph = ic_true.GetFinalGraph();
+
+    GraphComparator(true_graph, graph).Compare();
+}
+
+
 
 TEST(ConstFoldingTest, Sub) {
     // Before

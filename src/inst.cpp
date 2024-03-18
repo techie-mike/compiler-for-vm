@@ -40,6 +40,10 @@ void Inst::SetDataInput(id_t index, Inst *inst) {
     if (HasControlProp()) {
         index++;
     }
+    // For dynamic inputs
+    if (index != NumAllInputs() && GetRawInput(index) != nullptr) {
+        GetRawInput(index)->DeleteDataUser(this);
+    }
     SetRawInput(index, inst);
     inst->AddDataUser(this);
 }
@@ -268,9 +272,8 @@ ConstantInst *Inst::CastToConstant() {
 
 void Inst::ReplaceDataUsers(Inst *from) {
     ASSERT(!HasControlProp());
-    for (auto it = from->StartIteratorDataUsers(); it != from->GetRawUsers().end(); it++) {
+    for (auto it = from->StartIteratorDataUsers(); it != from->GetRawUsers().end(); it = from->StartIteratorDataUsers()) {
         auto user = *it;
-        AddDataUser(user);
         for (id_t i = 0; i < user->NumDataInputs(); i++) {
             if (user->GetDataInput(i) == from) {
                 user->SetDataInput(i, this);

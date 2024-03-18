@@ -118,6 +118,15 @@ public:
     void AddDataUser(Inst *inst);
     void DeleteDataUser(Inst *inst);
 
+    bool HasSingleDataUser() {
+        return NumDataUsers() == 1;
+    }
+
+    Inst *GetSingleDataUser() {
+        ASSERT(HasSingleDataUser());
+        return GetRawUsers().back();
+    }
+
     const std::list<Inst *> GetDataUsers();
 
     virtual void DumpInputs([[maybe_unused]] std::ostream &out) {};
@@ -205,11 +214,11 @@ private:
 
 private:
     bool inst_placed_ = false;
-    id_t id_;
-    LinearNumber linear_number_;
-    LifeNumber life_number_;
-    Opcode opc_;
-    Type type_;
+    id_t id_ {};
+    LinearNumber linear_number_ {};
+    LifeNumber life_number_ {};
+    Opcode opc_ {};
+    Type type_ {};
 
 protected:
     Inst *prev_ = nullptr;
