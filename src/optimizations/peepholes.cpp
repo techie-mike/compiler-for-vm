@@ -35,6 +35,8 @@ void Peepholes::VisitSub(Inst *inst) {
     if (ConstFoldingBinaryOp(graph_, inst)) {
         return;
     }
+    // Some optimization may be applied, so we don't go out from function
+    TryOptimizeSubSub(inst);
 
     if (TryOptimizeSubZero(inst)) {
         return;
@@ -60,6 +62,13 @@ void Peepholes::VisitOr(Inst *inst) {
     }
 }
 
+// 1. Constant 0x0 -> v3
+// 2. ... -> v3
+// 3. Sub v2, v1 -> v4
+// ==========>>==========
+// 1. Constant 0x0
+// 2. ... -> v4
+// 3. Sub v2, v1
 bool Peepholes::TryOptimizeSubZero(Inst *inst) {
     auto input0 = inst->GetDataInput(0);
     auto input1 = inst->GetDataInput(1);
@@ -69,6 +78,41 @@ bool Peepholes::TryOptimizeSubZero(Inst *inst) {
         return true;
     }
     return false;
+}
+
+// Optimize sub of sub
+// 1. Constant ... -> v3
+// 2. Constant ... -> v3
+// 3. ... -> v4
+// 4. Sub v3, v1 -> v3
+// 5. Sub v4, v2 -> v6
+// ==========>>==========
+// 1. Constant ... -> v3
+// 2. Constant ...
+// 6. Constant /v1+v2/ -> v5
+// 3. ... -> v4
+// 4. Sub v3, v1
+// 5. Sub v3, v6 -> v6
+bool Peepholes::TryOptimizeSubSub(Inst *inst) {
+    auto input0 = inst->GetDataInput(0);
+    auto input1 = inst->GetDataInput(1);
+
+    if (!input1->IsConst() || !inst->HasSingleDataUser()) {
+        return false;
+    }
+
+    auto single_user = inst->GetSingleDataUser();
+    if (single_user->GetOpcode() != Opcode::Sub || !single_user->GetDataInput(1)->IsConst()) {
+        return false;
+    }
+
+    auto const_near = input1->CastToConstant()->GetImm();
+    auto const_far = single_user->GetDataInput(1)->CastToConstant()->GetImm();
+    // Overflow is ok
+    auto new_const = graph_->CreateConstantInst(const_near + const_far);
+    single_user->SetDataInput(1, new_const);
+    single_user->SetDataInput(0, input0);
+    return true;
 }
 
 bool Peepholes::TryOptimizeShlAfterShr(Inst *inst) {

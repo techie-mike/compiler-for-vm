@@ -21,6 +21,7 @@ private:
 
     // Cases of optimization
     bool TryOptimizeSubZero(Inst *inst);
+    bool TryOptimizeSubSub(Inst *inst);
     bool TryOptimizeShlAfterShr(Inst *inst);
     bool TryOptimizeOrZero(Inst *inst);
 
