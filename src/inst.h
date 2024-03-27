@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <vector>
 #include <list>
 #include <string>
@@ -42,9 +43,13 @@ std::string OpcodeToString(Opcode opc);
 std::string CcToString(ConditionCode cc);
 std::string TypeToString(Type type);
 
+class Graph;
 class RegionInst;
 class IfInst;
+class JumpInst;
 class ConstantInst;
+class ParameterInst;
+class CallInst;
 
 class Inst
 {
@@ -61,6 +66,13 @@ public:
         opc_(opc),
         type_(type) {};
     virtual ~Inst() = default;
+
+    virtual Inst *LiteClone(Graph *target_graph, std::map<id_t, id_t> &connect);
+
+    virtual void DeleteInput([[maybe_unused]] Inst *inst) {
+        std::cerr << "Inst with opcode " << OPCODE_NAME[static_cast<size_t>(GetOpcode())] << " don't have inputs\n";
+        UNREACHABLE();
+    }
 
     void Dump(std::ostream& out);
 
@@ -97,7 +109,6 @@ public:
     uint32_t NumDataInputs() {
         ASSERT(!IsRegion());  // RegionInst has special method NumRegionInputs
         auto num_all = NumAllInputs();
-        ASSERT(num_all > 0);
         return HasControlProp() ? num_all - 1 : num_all;
     }
 
@@ -117,6 +128,7 @@ public:
 
     void AddDataUser(Inst *inst);
     void DeleteDataUser(Inst *inst);
+    void DeleteRawUser(Inst *inst);
 
     bool HasSingleDataUser() {
         return NumDataUsers() == 1;
@@ -165,6 +177,10 @@ public:
         return GetOpcode() == Opcode::Constant;
     }
 
+    bool IsCall() const {
+        return GetOpcode() == Opcode::Call;
+    }
+
     Inst *GetPrev() {
         return prev_;
     }
@@ -179,7 +195,10 @@ public:
 
     RegionInst *CastToRegion();
     IfInst *CastToIf();
+    JumpInst *CastToJump();
     ConstantInst *CastToConstant();
+    ParameterInst *CastToParameter();
+    CallInst *CastToCall();
 
     bool IsPlaced() const {
         return inst_placed_;
@@ -206,6 +225,8 @@ public:
     }
 
     void ReplaceDataUsers(Inst *from);
+    void ReplaceAllUsers(Inst *from);
+    void ReplaceCtrUser(Inst *from);
 
 private:
     auto StartIteratorDataUsers() {
@@ -254,6 +275,12 @@ public:
 
     virtual uint32_t NumAllInputs() override {
         return inputs_.size();
+    }
+
+    virtual void DeleteInput(Inst *inst) override {
+        auto it = std::find(inputs_.begin(), inputs_.end(), inst);
+        ASSERT(it != inputs_.end());
+        *it = nullptr;
     }
 
     virtual void DumpInputs(std::ostream &out) override {
@@ -311,11 +338,7 @@ public:
         inputs_.push_back(inst);
     }
 
-    void DeleteInput(Inst *inst) {
-        auto it = std::find(inputs_.begin(), inputs_.end(), inst);
-        ASSERT(it == inputs_.end());
-        inputs_.erase(it);
-    }
+    virtual void DeleteInput(Inst *inst) override;
 
     virtual uint32_t NumAllInputs() override {
         return inputs_.size();
@@ -423,6 +446,8 @@ public:
     ConstantInst(ImmType value):
         Inst(Opcode::Constant, Type::INT64),
         ImmidiateProperty(value) {}
+
+    virtual Inst *LiteClone(Graph *target_graph, std::map<id_t, id_t> &connect) override;
 
     virtual void DumpInputs(std::ostream &out) override {
         out << std::string("0x") << std::hex << GetImm() << std::dec;
@@ -582,6 +607,7 @@ public:
         *(++GetRawUsers().begin()) = inst;
         static_cast<RegionInst *>(inst)->SetRegionInput(inst->NumAllInputs(), this);
     }
+    // We can't copy a Jump, because can be jump on inst, whitch still haven't create
 
     virtual void DumpUsers(std::ostream &out) override;
 };
@@ -598,6 +624,12 @@ public:
         SetControlUser(inst);
         static_cast<RegionInst *>(inst)->SetRegionInput(inst->NumAllInputs(), this);
     }
+
+    Inst *GetJumpTo() {
+        return GetControlUser();
+    }
+
+    // We can't copy a Jump, because can be jump on inst, whitch still haven't create
 };
 
 class CompareInst : public FixedInputs<2>
@@ -615,6 +647,7 @@ public:
     }
 
     virtual void DumpOpcode(std::ostream& out) override;
+    virtual Inst *LiteClone(Graph *target_graph,  std::map<id_t, id_t> &connect) override;
 
 private:
     ConditionCode cc_;
@@ -652,18 +685,14 @@ public:
         return idx_param_;
     }
 
+    virtual void DumpInputs(std::ostream &out) override;
+
+    virtual Inst *LiteClone(Graph *target_graph,  std::map<id_t, id_t> &connect) override;
+
 private:
     id_t idx_param_;
 };
 
-// Call "NameFunc"
-// Inputs:
-// 0) CFG element
-// 1, ...) - arguments of function
-//
-// Users:
-// 0) CFG element
-// 1, ...) - users of return value
 class CallInst : public ControlProp<DynamicInputs>
 {
 public:
@@ -672,8 +701,11 @@ public:
         Base(Opcode::Call),
         name_func_() {};
 
-    void SetCFGUser(Inst *inst);
-    Inst *GetCFGUser();
+    void SetNameFunc(const std::string &name);
+    std::string GetNameFunc() const;
+
+    virtual Inst *LiteClone(Graph *target_graph,  std::map<id_t, id_t> &connect) override;
+    virtual void DumpInputs(std::ostream &out) override;
 
 private:
     std::string name_func_;

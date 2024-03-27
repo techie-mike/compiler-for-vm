@@ -327,7 +327,7 @@ TEST(GraphTest, TestParameterReturn) {
     "   0.    Start       -> v2\n"
     "   1.    End        v4\n"
     "   2.    Region     v0 -> v4\n"
-    "   3.    Parameter   -> v4\n"
+    "   3.    Parameter  \"2\"  -> v4\n"
     "   4.    Return     v2, v3 -> v1\n";
     ic.GetFinalGraph()->Dump(dump_out);
     ASSERT_EQ(dump_out.str(), output);
@@ -350,7 +350,7 @@ TEST(GraphTest, TestCall) {
     "   1.    End        v5\n"
     "   2.    Region     v0 -> v4\n"
     "   3.i64 Constant   0x4 -> v4\n"
-    "   4.    Call       v2, v3 -> v5, v5\n"
+    "   4.    Call       \"\" v2, v3 -> v5, v5\n"
     "   5.    Return     v4, v4 -> v1\n";
     ic.GetFinalGraph()->Dump(dump_out);
     ASSERT_EQ(dump_out.str(), output);

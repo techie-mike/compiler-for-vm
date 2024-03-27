@@ -70,6 +70,13 @@ public:
         }
         return *this;
     }
+    IrConstructor &NameFunc(std::string name) {
+        if (!current_inst_->IsCall()) {
+            UNREACHABLE();
+        }
+        current_inst_->CastToCall()->SetNameFunc(name);
+        return *this;
+    }
 
     IrConstructor &Branches(id_t true_br, id_t false_br) {
         ASSERT(current_inst_ != nullptr);

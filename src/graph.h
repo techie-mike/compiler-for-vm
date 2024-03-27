@@ -18,13 +18,24 @@ public:
             }
             delete inst;
         }
+        for (auto inst : deleted_insts_) {
+            if (inst == nullptr) {
+                continue;
+            }
+            delete inst;
+        }
     }
 
     void SetMethodName(const std::string& name);
     std::string GetMethodName() const;
 
+    void SetNumParams(uint32_t num);
+    uint32_t GetNumParams();
+
     void Dump(std::ostream &out);
     void DumpDomTree(std::ostream &out);
+    void AddInst(Inst *inst);
+    void DeleteInst(Inst *inst);
 
 #define CREATE_CREATORS(OPCODE, BASE)                                                       \
     template <typename... Args>                                                             \
@@ -89,7 +100,7 @@ public:
         unit_test_mode_ = true;
     }
 
-    size_t GetNumInsts() {
+    size_t GetNumInsts() const {
         return all_inst_.size();
     }
 
@@ -117,7 +128,7 @@ public:
         root_loop_ = loop;
     }
 
-    void DumpPlacedInsts(std::ostream &out);
+    void DumpPlacedInsts(std::ostream &out) const;
 
     RegionInst *GetStartRegion() {
         return GetInstByIndex(0)->CastToRegion();
@@ -127,7 +138,7 @@ public:
         insts_placed_ = true;
     }
 
-    bool IsInstsPlaced() {
+    bool IsInstsPlaced() const {
         return insts_placed_;
     }
 
@@ -135,10 +146,12 @@ private:
     bool unit_test_mode_ = false;
     bool insts_placed_ = false;
     uint32_t num_loops_ = 0;
+    uint32_t num_params_ = 0;
     Loop *root_loop_ = nullptr;
     std::string name_method_;
     std::vector<Inst *> all_inst_;
     std::vector<RegionInst *> all_regions_;
+    std::vector<Inst *> deleted_insts_;
 };
 
 }

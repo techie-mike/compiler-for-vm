@@ -64,6 +64,25 @@ add_custom_target(
     COMMAND peepholes_tests
 )
 
+add_executable(
+    inlining_test
+    inlining_tests.cpp
+    graph_comparator.cpp
+)
+
+target_link_libraries(
+    inlining_test
+    ${ALL_LIBS_FOR_TESTS}
+)
+
+target_include_directories(inlining_test PUBLIC "${CMAKE_SOURCE_DIR}/src")
+
+gtest_discover_tests(inlining_test)
+
+add_custom_target(
+    inlining_test_gtest
+    COMMAND inlining_test
+)
 
 add_custom_target(
     tests
