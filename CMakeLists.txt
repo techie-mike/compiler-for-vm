@@ -22,6 +22,7 @@ set(COMPILER_SOURCES
     ${CMAKE_SOURCE_DIR}/src/optimizations/linear_scan.cpp
     ${CMAKE_SOURCE_DIR}/src/optimizations/peepholes.cpp
     ${CMAKE_SOURCE_DIR}/src/optimizations/constant_folding.cpp
+    ${CMAKE_SOURCE_DIR}/src/optimizations/inlining.cpp
 )
 
 add_library(CompilerLibBase ${COMPILER_SOURCES})

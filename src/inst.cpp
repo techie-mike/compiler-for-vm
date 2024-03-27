@@ -50,6 +50,7 @@ void Inst::SetDataInput(id_t index, Inst *inst) {
 
 Inst *Inst::GetDataInput(id_t index) {
     ASSERT(!IsRegion());  // RegionInst has special method GetRegionInput
+    ASSERT(index < NumDataInputs());
     if (HasControlProp()) {
         index++;
     }
@@ -75,6 +76,13 @@ void Inst::DeleteDataUser(Inst *inst) {
     auto it = std::find(StartIteratorDataUsers(), GetRawUsers().end(), inst);
     ASSERT(it != GetRawUsers().end());
     users_.erase(it);
+}
+
+void Inst::DeleteRawUser(Inst *inst) {
+    auto it = std::find(GetRawUsers().begin(), GetRawUsers().end(), inst);
+    if (it != GetRawUsers().end()) {
+        users_.erase(it);
+    }
 }
 
 uint32_t Inst::NumDataUsers() {
@@ -193,15 +201,15 @@ void PhiInst::DumpInputs(std::ostream &out) {
 }
 
 void DynamicInputs::DumpInputs(std::ostream &out) {
-        bool first = true;
-        for (auto inst : GetAllInputs()) {
-            if (inst == nullptr) {
-                continue;
-            }
-            out << std::string(first ? "" : ", ") << std::string("v") << std::to_string(inst->GetId());
-            first = false;
+    bool first = true;
+    for (auto inst : GetAllInputs()) {
+        if (inst == nullptr) {
+            continue;
         }
+        out << std::string(first ? "" : ", ") << std::string("v") << std::to_string(inst->GetId());
+        first = false;
     }
+}
 
 std::string OpcodeToString(Opcode opc) {
     return OPCODE_NAME.at(static_cast<size_t>(opc));
@@ -270,10 +278,27 @@ ConstantInst *Inst::CastToConstant() {
     return static_cast<ConstantInst *>(this);
 }
 
+ParameterInst *Inst::CastToParameter() {
+    ASSERT(GetOpcode() == Opcode::Parameter);
+    return static_cast<ParameterInst *>(this);
+}
+
+CallInst *Inst::CastToCall() {
+    ASSERT(GetOpcode() == Opcode::Call);
+    return static_cast<CallInst *>(this);
+}
+
+JumpInst *Inst::CastToJump() {
+    ASSERT(GetOpcode() == Opcode::Jump);
+    return static_cast<JumpInst *>(this);
+}
+
 void Inst::ReplaceDataUsers(Inst *from) {
-    ASSERT(!HasControlProp());
     for (auto it = from->StartIteratorDataUsers(); it != from->GetRawUsers().end(); it = from->StartIteratorDataUsers()) {
         auto user = *it;
+        if (user == nullptr) {
+            continue;
+        }
         for (id_t i = 0; i < user->NumDataInputs(); i++) {
             if (user->GetDataInput(i) == from) {
                 user->SetDataInput(i, this);
@@ -281,6 +306,99 @@ void Inst::ReplaceDataUsers(Inst *from) {
         }
     }
     from->GetRawUsers().erase(from->StartIteratorDataUsers(), from->GetRawUsers().end());
+}
+
+void CallInst::SetNameFunc(const std::string &name) {
+    name_func_ = name;
+}
+
+std::string CallInst::GetNameFunc() const {
+    return name_func_;
+}
+
+Inst *Inst::LiteClone(Graph *target_graph, std::map<id_t, id_t> &connect) {
+    auto new_inst = target_graph->CreateClearInstByOpcode(GetOpcode());
+    new_inst->type_ = type_;
+    new_inst->SetId(target_graph->GetNumInsts());
+    target_graph->AddInst(new_inst);
+
+    // To many specific cases in common code!
+    auto opc = GetOpcode();
+    if (opc == Opcode::Start || opc == Opcode::Parameter || opc == Opcode::Region || opc == Opcode::End) {
+        return new_inst;
+    }
+    // if (opc == Opcode::Region || opc == Opcode::End) {
+    //     auto num_inputs = CastToRegion()->NumRegionInputs();
+    //     for (id_t index = 0; index < num_inputs; index++) {
+    //         new_inst->CastToRegion()->SetRegionInput(index, target_graph->GetInstByIndex(connect[CastToRegion()->GetRegionInput(index)->GetId()]));
+    //     }
+    //     return new_inst;
+    // }
+
+    if (HasControlProp() && GetControlInput() != nullptr) {
+        new_inst->SetControlInput(target_graph->GetInstByIndex(connect[GetControlInput()->GetId()]));
+    }
+    auto num_inputs = NumDataInputs();
+    for (id_t index = 0; index < num_inputs; index++) {
+        // If id_t > num_all_inst in graph, write input in order (case for Jump and If)
+        new_inst->SetDataInput(index, target_graph->GetInstByIndex(connect[GetDataInput(index)->GetId()]));
+    }
+    return new_inst;
+}
+
+Inst *ConstantInst::LiteClone(Graph *target_graph, std::map<id_t, id_t> &connect) {
+    auto new_inst = static_cast<ConstantInst *>(Inst::LiteClone(target_graph, connect));
+    new_inst->SetImm(GetImm());
+    return new_inst;
+}
+
+Inst *CompareInst::LiteClone(Graph *target_graph, std::map<id_t, id_t> &connect) {
+    auto new_inst = static_cast<CompareInst *>(FixedInputs<2>::LiteClone(target_graph, connect));
+    new_inst->SetCC(GetCC());
+    return new_inst;
+}
+
+Inst *ParameterInst::LiteClone(Graph *target_graph, std::map<id_t, id_t> &connect) {
+    auto new_inst = static_cast<ParameterInst *>(Inst::LiteClone(target_graph, connect));
+    new_inst->SetIndexParam(GetIndexParam());
+    return new_inst;
+}
+
+Inst *CallInst::LiteClone(Graph *target_graph, std::map<id_t, id_t> &connect) {
+    auto new_inst = static_cast<CallInst *>(Inst::LiteClone(target_graph, connect));
+    new_inst->SetNameFunc(GetNameFunc());
+    return new_inst;
+}
+
+void CallInst::DumpInputs(std::ostream &out) {
+    out << "\"" << GetNameFunc() << "\" ";
+    Base::DumpInputs(out);
+}
+
+void ParameterInst::DumpInputs(std::ostream &out) {
+    out << "\"" << GetIndexParam() << "\" ";
+    Inst::DumpInputs(out);
+}
+
+void Inst::ReplaceAllUsers(Inst *from) {
+    ReplaceDataUsers(from);
+    ReplaceCtrUser(from);
+}
+
+void Inst::ReplaceCtrUser(Inst *from) {
+    ASSERT(HasSingleDataUser());
+    auto c_user = from->GetControlUser();
+    if (c_user == nullptr) {
+        return;
+    }
+    SetControlUser(c_user);
+    from->SetControlUser(nullptr);
+}
+
+void DynamicInputs::DeleteInput(Inst *inst) {
+    auto it = std::find(inputs_.begin(), inputs_.end(), inst);
+    ASSERT(it != inputs_.end());
+    inputs_.erase(it);
 }
 
 }

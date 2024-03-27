@@ -33,6 +33,13 @@ std::string Graph::GetMethodName() const
     return name_method_;
 }
 
+void Graph::SetNumParams(uint32_t num) {
+    num_params_ = num;
+}
+uint32_t Graph::GetNumParams() {
+    return num_params_;
+}
+
 Inst *Graph::CreateClearInstByOpcode(Opcode opc) {
     switch(opc) {
 
@@ -100,7 +107,7 @@ void Graph::DumpDomTree(std::ostream &out) {
     }
 }
 
-void Graph::DumpPlacedInsts(std::ostream &out) {
+void Graph::DumpPlacedInsts(std::ostream &out) const {
     bool first = true;
     out << "Instructions is PLACED:" << std::endl;
     for (auto region : all_regions_) {
@@ -116,6 +123,29 @@ void Graph::DumpPlacedInsts(std::ostream &out) {
     }
 }
 
+void Graph::AddInst(Inst *inst) {
+    all_inst_.push_back(inst);
+}
 
+void Graph::DeleteInst(Inst *inst) {
+    // Delete all inputs
+    for (id_t i = 0; i < inst->NumAllInputs(); i++) {
+        if (inst->GetRawInput(i) != nullptr) {
+            inst->GetRawInput(i)->DeleteRawUser(inst);
+        }
+    }
+    // Delete all users
+    if (inst->NumDataUsers() > 0) {
+        for (auto it = inst->GetRawUsers().begin(); it != inst->GetRawUsers().end(); it = (*it == nullptr) ? ++it : inst->GetRawUsers().begin()) {
+            if (*it != nullptr) {
+                (*it)->DeleteInput(inst);
+                inst->DeleteRawUser(*it);
+            }
+        }
+    }
+    auto del = std::find(all_inst_.begin(), all_inst_.end(), inst);
+    *del = nullptr;
+    deleted_insts_.push_back(inst);
+}
 
 }
