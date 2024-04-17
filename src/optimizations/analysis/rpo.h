@@ -25,7 +25,7 @@ class RpoInsts
 public:
     RpoInsts(Graph *graph);
 
-    void Run();
+    RpoInsts* Run();
     void DFSInsts(Inst *inst, Marker &marker);
     std::vector<Inst *> &GetVector();
 

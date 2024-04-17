@@ -45,10 +45,11 @@ void RpoRegions::AddInstInVector(Inst *inst) {
 RpoInsts::RpoInsts(Graph *graph):
     graph_ (graph) {}
 
-void RpoInsts::Run() {
+RpoInsts* RpoInsts::Run() {
     auto end = graph_->GetInstByIndex(1);
     auto marker = Marker(graph_);
     DFSInsts(end, marker);
+    return this;
 }
 
 void RpoInsts::DFSInsts(Inst *inst, Marker &marker) {
