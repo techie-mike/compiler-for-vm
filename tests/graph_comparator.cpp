@@ -9,7 +9,6 @@ void GraphComparator::Compare() {
     for (size_t i = 0; i < left_->GetNumInsts(); i++) {
         auto left_inst = left_->GetInstByIndex(i);
         auto right_inst = right_->GetInstByIndex(i);
-
         CompareInstructions(left_inst, right_inst);
     }
 }

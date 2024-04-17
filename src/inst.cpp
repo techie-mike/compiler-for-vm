@@ -382,7 +382,18 @@ void ParameterInst::DumpInputs(std::ostream &out) {
 
 void Inst::ReplaceAllUsers(Inst *from) {
     ReplaceDataUsers(from);
-    ReplaceCtrUser(from);
+    UpdateCtrConnection(from);
+}
+
+void Inst::UpdateCtrConnection(Inst *from) {
+    // ASSERT(HasSingleDataUser());
+    auto c_user = from->GetControlUser();
+    if (c_user == nullptr) {
+        return;
+    }
+    auto c_input = from->GetControlInput();
+    c_user->SetControlInput(c_input);
+    from->SetControlUser(nullptr);
 }
 
 void Inst::ReplaceCtrUser(Inst *from) {
@@ -400,5 +411,30 @@ void DynamicInputs::DeleteInput(Inst *inst) {
     ASSERT(it != inputs_.end());
     inputs_.erase(it);
 }
+
+RegionInst *FindRegion(Inst *inst) {
+    ASSERT(inst->HasControlProp());
+    while (!inst->IsRegion()) {
+        inst = inst->GetControlInput();
+    }
+    return inst->CastToRegion();
+}
+
+bool Inst::IsDominated(Inst *other) {
+    ASSERT(HasControlProp() && other->HasControlProp());
+    auto *our_region = FindRegion(this);
+    auto *other_region = FindRegion(other);
+
+    if (our_region == other_region) {
+        auto *inst = other;
+        while (inst != other_region && inst != this) {
+            inst = inst->GetControlInput();
+        }
+        return inst == this;
+    }
+    // Insts in different regions
+    return our_region->IsDominated(other_region);
+}
+
 
 }

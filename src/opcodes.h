@@ -23,6 +23,8 @@ namespace compiler {
     ACTION( Phi         , PhiInst                       ) \
     ACTION( Return      , ReturnInst                    ) \
     ACTION( Parameter   , ParameterInst                 ) \
+    ACTION( NullCheck   , NullCheckInst                 ) \
+    ACTION( BoundsCheck , BoundsCheckInst               ) \
     ACTION( Call        , CallInst                      )
 
 #define REGIONS_OPCODE_LIST(ACTION)                       \
@@ -96,12 +98,13 @@ constexpr std::array<const char *const, static_cast<size_t>(ConditionCode::NUM_C
 
 //===================================================================
 
-#define TYPE_LIST(ACTION)           \
-    ACTION( BOOL    , b     )       \
-    ACTION( INT32   , i32   )       \
-    ACTION( UINT32  , u32   )       \
-    ACTION( INT64   , i64   )       \
-    ACTION( UINT64  , u64   )
+#define TYPE_LIST(ACTION)       \
+    ACTION( BOOL     , b     )  \
+    ACTION( INT32    , i32   )  \
+    ACTION( UINT32   , u32   )  \
+    ACTION( INT64    , i64   )  \
+    ACTION( UINT64   , u64   )  \
+    ACTION( REFERENCE, ref   )
 
 enum class Type {
     NONE = 0,

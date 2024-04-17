@@ -227,6 +227,9 @@ public:
     void ReplaceDataUsers(Inst *from);
     void ReplaceAllUsers(Inst *from);
     void ReplaceCtrUser(Inst *from);
+    void UpdateCtrConnection(Inst *from);
+
+    bool IsDominated(Inst *other);
 
 private:
     auto StartIteratorDataUsers() {
@@ -709,6 +712,24 @@ public:
 
 private:
     std::string name_func_;
+};
+
+class NullCheckInst : public ControlProp<FixedInputs<2>>
+{
+public:
+    using Base = ControlProp<FixedInputs<2>>;
+    NullCheckInst():
+        Base(Opcode::NullCheck) {};
+    // Need to add check type of input
+};
+
+class BoundsCheckInst : public ControlProp<FixedInputs<3>>
+{
+public:
+    using Base = ControlProp<FixedInputs<3>>;
+    BoundsCheckInst():
+        Base(Opcode::BoundsCheck) {};
+    // Need to add check type of input
 };
 
 }

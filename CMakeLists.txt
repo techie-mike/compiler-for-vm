@@ -23,6 +23,7 @@ set(COMPILER_SOURCES
     ${CMAKE_SOURCE_DIR}/src/optimizations/peepholes.cpp
     ${CMAKE_SOURCE_DIR}/src/optimizations/constant_folding.cpp
     ${CMAKE_SOURCE_DIR}/src/optimizations/inlining.cpp
+    ${CMAKE_SOURCE_DIR}/src/optimizations/checks_elimination.cpp
 )
 
 add_library(CompilerLibBase ${COMPILER_SOURCES})

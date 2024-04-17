@@ -84,7 +84,27 @@ add_custom_target(
     COMMAND inlining_test
 )
 
+add_executable(
+    checks_elimination
+    checks_elimination_tests.cpp
+    graph_comparator.cpp
+)
+
+target_link_libraries(
+    checks_elimination
+    ${ALL_LIBS_FOR_TESTS}
+)
+
+target_include_directories(checks_elimination PUBLIC "${CMAKE_SOURCE_DIR}/src")
+
+gtest_discover_tests(checks_elimination)
+
+add_custom_target(
+    checks_elimination_gtest
+    COMMAND checks_elimination
+)
+
 add_custom_target(
     tests
-    DEPENDS graph_tests_gtest analysis_tests_gtest peepholes_tests_gtest
+    DEPENDS graph_tests_gtest analysis_tests_gtest peepholes_tests_gtest checks_elimination_gtest
 )
